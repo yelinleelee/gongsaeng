@@ -29,16 +29,24 @@ var (
 	initErr  error
 )
 
-// New initializes the Firebase Admin SDK using FIREBASE_CREDENTIALS_FILE
-// (path to a service account JSON). It is safe to call multiple times.
+// New initializes the Firebase Admin SDK.
+// It prefers FIREBASE_CREDENTIALS_JSON (raw service-account JSON, suited for
+// Railway / Heroku env vars) and falls back to FIREBASE_CREDENTIALS_FILE
+// (a local file path). It is safe to call multiple times.
 func New(ctx context.Context) (*Verifier, error) {
 	once.Do(func() {
-		path := os.Getenv("FIREBASE_CREDENTIALS_FILE")
-		if path == "" {
-			initErr = errors.New("FIREBASE_CREDENTIALS_FILE is not set")
+		var opt option.ClientOption
+
+		if raw := os.Getenv("FIREBASE_CREDENTIALS_JSON"); raw != "" {
+			opt = option.WithCredentialsJSON([]byte(raw))
+		} else if path := os.Getenv("FIREBASE_CREDENTIALS_FILE"); path != "" {
+			opt = option.WithCredentialsFile(path)
+		} else {
+			initErr = errors.New("set FIREBASE_CREDENTIALS_JSON or FIREBASE_CREDENTIALS_FILE")
 			return
 		}
-		app, err := firebase.NewApp(ctx, nil, option.WithCredentialsFile(path))
+
+		app, err := firebase.NewApp(ctx, nil, opt)
 		if err != nil {
 			initErr = fmt.Errorf("firebase init: %w", err)
 			return
