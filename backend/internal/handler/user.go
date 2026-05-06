@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/hierolabs/openletter/backend/internal/model"
+	"github.com/hierolabs/gongsaeng/backend/internal/model"
 )
 
 func ListUsers(db *gorm.DB) gin.HandlerFunc {

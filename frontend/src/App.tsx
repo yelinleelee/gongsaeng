@@ -1,122 +1,75 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider } from "./auth/AuthContext";
+import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { MainLayout } from "./layout/MainLayout";
+import { HomePage } from "./pages/HomePage";
+import { LoginPage } from "./pages/LoginPage";
+import { MyPage } from "./pages/MyPage";
+import { StaysPage } from "./pages/StaysPage";
+import { StayDetailPage } from "./pages/StayDetailPage";
+import { MyBookingsPage } from "./pages/MyBookingsPage";
+import { HostBookingsPage } from "./pages/HostBookingsPage";
+import { MessagesPage } from "./pages/MessagesPage";
+import { HostDashboard } from "./pages/HostDashboard";
+import { BrandStoryPage } from "./pages/BrandStoryPage";
+import { AboutPage } from "./pages/AboutPage";
+import { NeighborhoodPage } from "./pages/NeighborhoodPage";
+import { HieroPage } from "./pages/HieroPage";
+import { LaunchingPage } from "./pages/LaunchingPage";
+import { RegisterLayout } from "./host/RegisterLayout";
+import { TypeStep } from "./host/steps/TypeStep";
+import { ConceptStep } from "./host/steps/ConceptStep";
+import { BasicsStep } from "./host/steps/BasicsStep";
+import { DescriptionStep } from "./host/steps/DescriptionStep";
+import { LocationStep } from "./host/steps/LocationStep";
+import { PhotosStep } from "./host/steps/PhotosStep";
+import { PriceStep } from "./host/steps/PriceStep";
+import { SuccessStep } from "./host/steps/SuccessStep";
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/stays" element={<StaysPage />} />
+            <Route path="/stays/:id" element={<StayDetailPage />} />
+            <Route path="/brand-story" element={<BrandStoryPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/neighborhood" element={<NeighborhoodPage />} />
+            <Route path="/host/hiero" element={<HieroPage />} />
+            <Route path="/host/launching" element={<LaunchingPage />} />
 
-      <div className="ticks"></div>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/mypage" element={<MyPage />} />
+              <Route path="/bookings/my" element={<MyBookingsPage />} />
+              <Route path="/messages" element={<MessagesPage />} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+              <Route path="/host/register" element={<RegisterLayout />}>
+                <Route index element={<Navigate to="type" replace />} />
+                <Route path="type" element={<TypeStep />} />
+                <Route path="concept" element={<ConceptStep />} />
+                <Route path="basics" element={<BasicsStep />} />
+                <Route path="description" element={<DescriptionStep />} />
+                <Route path="location" element={<LocationStep />} />
+                <Route path="photos" element={<PhotosStep />} />
+                <Route path="price" element={<PriceStep />} />
+                <Route path="success" element={<SuccessStep />} />
+              </Route>
+            </Route>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+            <Route element={<ProtectedRoute requireHost />}>
+              <Route path="/host" element={<HostDashboard />} />
+              <Route path="/host/bookings" element={<HostBookingsPage />} />
+            </Route>
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;

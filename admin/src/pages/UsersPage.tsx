@@ -8,6 +8,10 @@ type User = {
   UpdatedAt: string;
   email: string;
   name: string;
+  phone: string;
+  role: string;
+  is_verified: boolean;
+  avatar: string;
 };
 
 export function UsersPage() {
@@ -83,6 +87,8 @@ export function UsersPage() {
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Created</th>
             </tr>
           </thead>
@@ -91,7 +97,7 @@ export function UsersPage() {
               <SkeletonRows />
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                   사용자가 없습니다.
                 </td>
               </tr>
@@ -101,10 +107,34 @@ export function UsersPage() {
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">
                     {u.ID}
                   </td>
-                  <td className="px-4 py-3 font-medium text-slate-900">
-                    {u.name}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {u.avatar ? (
+                        <img src={u.avatar} alt="" className="size-7 rounded-full object-cover" />
+                      ) : (
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
+                          {u.name?.[0] ?? "?"}
+                        </div>
+                      )}
+                      <span className="font-medium text-slate-900">{u.name || "—"}</span>
+                      {u.is_verified && (
+                        <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                          verified
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      u.role === "host"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-100 text-slate-600"
+                    }`}>
+                      {u.role || "guest"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{u.phone || "—"}</td>
                   <td className="px-4 py-3 text-slate-500">
                     {new Date(u.CreatedAt).toLocaleString()}
                   </td>
@@ -123,7 +153,7 @@ function SkeletonRows() {
     <>
       {[0, 1, 2].map((i) => (
         <tr key={i}>
-          {[0, 1, 2, 3].map((j) => (
+          {[0, 1, 2, 3, 4, 5].map((j) => (
             <td key={j} className="px-4 py-4">
               <div className="h-3 w-3/4 animate-pulse rounded bg-slate-100" />
             </td>

@@ -15,3 +15,6 @@ backend
 
 # Air
 tmp/
+
+# Secrets
+secrets/

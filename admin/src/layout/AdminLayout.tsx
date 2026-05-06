@@ -39,7 +39,7 @@ export function AdminLayout() {
         <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
           {!collapsed && (
             <span className="text-sm font-semibold tracking-tight">
-              openletter
+              gongsaeng
               <span className="ml-1 text-slate-400">admin</span>
             </span>
           )}

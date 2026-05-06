@@ -9,8 +9,8 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/hierolabs/openletter/backend/internal/auth"
-	"github.com/hierolabs/openletter/backend/internal/model"
+	"github.com/hierolabs/gongsaeng/backend/internal/auth"
+	"github.com/hierolabs/gongsaeng/backend/internal/model"
 )
 
 func Open() (*gorm.DB, error) {
@@ -26,6 +26,10 @@ func Open() (*gorm.DB, error) {
 var Models = []any{
 	&model.User{},
 	&model.AdminUser{},
+	&model.Property{},
+	&model.Booking{},
+	&model.Review{},
+	&model.Message{},
 }
 
 func Migrate(db *gorm.DB) error {

@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/hierolabs/openletter/backend/internal/auth"
-	"github.com/hierolabs/openletter/backend/internal/model"
+	"github.com/hierolabs/gongsaeng/backend/internal/auth"
+	"github.com/hierolabs/gongsaeng/backend/internal/model"
 )
 
 type loginRequest struct {

@@ -51,7 +51,7 @@ export function LoginPage() {
             <LogIn className="size-5" />
           </div>
           <h1 className="text-lg font-semibold text-slate-900">Admin Sign in</h1>
-          <p className="text-xs text-slate-500">openletter administration</p>
+          <p className="text-xs text-slate-500">gongsaeng administration</p>
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4">

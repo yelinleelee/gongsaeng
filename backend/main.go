@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -8,9 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"github.com/hierolabs/openletter/backend/internal/auth"
-	"github.com/hierolabs/openletter/backend/internal/db"
-	"github.com/hierolabs/openletter/backend/internal/handler"
+	"github.com/hierolabs/gongsaeng/backend/internal/auth"
+	"github.com/hierolabs/gongsaeng/backend/internal/cloudinary"
+	"github.com/hierolabs/gongsaeng/backend/internal/db"
+	"github.com/hierolabs/gongsaeng/backend/internal/firebase"
+	"github.com/hierolabs/gongsaeng/backend/internal/handler"
 )
 
 func main() {
@@ -27,6 +30,16 @@ func main() {
 		log.Fatalf("seed admin: %v", err)
 	}
 
+	verifier, err := firebase.New(context.Background())
+	if err != nil {
+		log.Fatalf("firebase: %v", err)
+	}
+
+	cldClient, err := cloudinary.New()
+	if err != nil {
+		log.Fatalf("cloudinary: %v", err)
+	}
+
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5180", "http://localhost:5181"},
@@ -38,6 +51,49 @@ func main() {
 	// Public routes (consumed by frontend)
 	r.GET("/health", handler.Health(gormDB))
 	r.GET("/users", handler.ListUsers(gormDB))
+	r.GET("/properties", handler.ListProperties(gormDB))
+	r.GET("/properties/:id", handler.GetProperty(gormDB))
+	r.GET("/properties/:id/booked-dates", handler.PropertyBookedDates(gormDB))
+	r.GET("/properties/:id/reviews", handler.ListPropertyReviews(gormDB))
+
+	// User auth (consumed by frontend)
+	r.POST("/auth/google", handler.GoogleLogin(gormDB, verifier))
+
+	user := r.Group("")
+	user.Use(auth.RequireUser())
+	{
+		user.GET("/auth/me", handler.UserMe(gormDB))
+		user.PATCH("/auth/me", handler.UpdateMe(gormDB))
+		user.POST("/auth/become-host", handler.BecomeHost(gormDB))
+
+		user.POST("/bookings", handler.CreateBooking(gormDB))
+		user.GET("/bookings/my", handler.MyBookings(gormDB))
+		user.GET("/bookings/:id", handler.GetBooking(gormDB))
+		user.PATCH("/bookings/:id/cancel", handler.CancelBooking(gormDB))
+
+		user.POST("/reviews", handler.CreateReview(gormDB))
+
+		user.GET("/messages/conversations", handler.ListConversations(gormDB))
+		user.GET("/messages/with/:userId", handler.GetConversation(gormDB))
+		user.POST("/messages", handler.SendMessage(gormDB))
+		user.PATCH("/messages/:id/read", handler.MarkMessageRead(gormDB))
+
+		user.POST("/upload/image", handler.UploadImage(cldClient))
+		user.POST("/upload/images", handler.UploadImages(cldClient))
+		user.DELETE("/upload/image", handler.DestroyImage(cldClient))
+	}
+
+	host := r.Group("")
+	host.Use(auth.RequireUser(), auth.RequireHost())
+	{
+		host.GET("/host/properties", handler.MyProperties(gormDB))
+		host.POST("/properties", handler.CreateProperty(gormDB))
+		host.PATCH("/properties/:id", handler.UpdateProperty(gormDB))
+		host.DELETE("/properties/:id", handler.DeleteProperty(gormDB))
+
+		host.GET("/host/bookings", handler.HostBookings(gormDB))
+		host.PATCH("/bookings/:id/approve", handler.ApproveBooking(gormDB))
+	}
 
 	// Admin routes (consumed by admin app)
 	adminGroup := r.Group("/admin")
@@ -71,7 +127,7 @@ func main() {
 		port = "8080"
 	}
 	addr := ":" + port
-	log.Printf("openletter backend listening on %s", addr)
+	log.Printf("gongsaeng backend listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}
