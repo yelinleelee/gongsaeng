@@ -4,14 +4,12 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
-  Clock,
   ExternalLink,
   Heart,
   Image as ImageIcon,
   LineChart,
   MapPin,
   Share2,
-  Users,
 } from "lucide-react";
 import { fetchInstitutionFacilities } from "../data/seoul";
 import { manualSpaces } from "../data/manualSpaces";
