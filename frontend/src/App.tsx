@@ -7,6 +7,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { MyPage } from "./pages/MyPage";
 import { StaysPage } from "./pages/StaysPage";
 import { StayDetailPage } from "./pages/StayDetailPage";
+import { SpaceDetailPage } from "./pages/SpaceDetailPage";
 import { MyBookingsPage } from "./pages/MyBookingsPage";
 import { HostBookingsPage } from "./pages/HostBookingsPage";
 import { MessagesPage } from "./pages/MessagesPage";
@@ -36,6 +37,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/stays" element={<StaysPage />} />
             <Route path="/stays/:id" element={<StayDetailPage />} />
+            <Route path="/spaces/:id" element={<SpaceDetailPage />} />
             <Route path="/brand-story" element={<BrandStoryPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/neighborhood" element={<NeighborhoodPage />} />

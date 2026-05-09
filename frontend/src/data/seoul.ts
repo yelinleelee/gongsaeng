@@ -27,3 +27,16 @@ export const fetchCultureEvents = async () => {
     return null
   }
 }
+
+// 시설대관 - 기관시설
+export const fetchInstitutionFacilities = async () => {
+  try {
+    const response = await axios.get(
+      `http://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationInstitution/1/100/`
+    )
+    return response.data
+  } catch (error) {
+    console.error('기관시설 데이터 불러오기 실패:', error)
+    return null
+  }
+}

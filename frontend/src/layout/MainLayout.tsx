@@ -1,85 +1,39 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LogIn, LogOut, UserCircle } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 
 export function MainLayout() {
   const { user, ready, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isHome = location.pathname === "/";
+  const logoSrc = isHome ? "/logo-1.png" : "/logo-2.png";
 
   return (
     <div className="flex min-h-full flex-col bg-white text-slate-900">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
-          <Link to="/" className="text-lg font-semibold tracking-tight">
-            gongsaeng
+      <header
+        className={
+          isHome
+            ? "absolute inset-x-0 top-0 z-20"
+            : "sticky top-0 z-10 bg-white"
+        }
+      >
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6 pb-4">
+          <Link to="/">
+            <img src={logoSrc} alt="잇다 로고" className="h-20 w-auto" />
           </Link>
-
-          <nav className="flex items-center gap-6 text-sm text-slate-600">
-            <NavLink
-              to="/stays"
-              className={({ isActive }) =>
-                isActive ? "text-slate-900" : "hover:text-slate-900"
-              }
-            >
-              Stays
-            </NavLink>
-            <NavLink
-              to="/about"
-              className={({ isActive }) =>
-                isActive ? "text-slate-900" : "hover:text-slate-900"
-              }
-            >
-              About
-            </NavLink>
-            <NavLink
-              to="/neighborhood"
-              className={({ isActive }) =>
-                isActive ? "text-slate-900" : "hover:text-slate-900"
-              }
-            >
-              동네 매칭
-            </NavLink>
-            {user && (
-              <NavLink
-                to="/bookings/my"
-                className={({ isActive }) =>
-                  isActive ? "text-slate-900" : "hover:text-slate-900"
-                }
-              >
-                My bookings
-              </NavLink>
-            )}
-            {user && (
-              <NavLink
-                to="/messages"
-                className={({ isActive }) =>
-                  isActive ? "text-slate-900" : "hover:text-slate-900"
-                }
-              >
-                Messages
-              </NavLink>
-            )}
-            {user?.role === "host" && (
-              <NavLink
-                to="/host/bookings"
-                className={({ isActive }) =>
-                  isActive ? "text-slate-900" : "hover:text-slate-900"
-                }
-              >
-                Host
-              </NavLink>
-            )}
-          </nav>
 
           <div className="flex items-center gap-3 text-sm">
             {!ready ? null : user ? (
               <>
                 <Link
                   to="/mypage"
-                  className="flex items-center gap-2 text-slate-700 hover:text-slate-900"
+                  className={`flex items-center gap-1.5 hover:opacity-80 ${
+                    isHome ? "text-white drop-shadow" : "text-slate-900"
+                  }`}
                 >
-                  <UserCircle className="size-5" />
-                  <span>{user.name}</span>
+                  <UserCircle className="size-4" />
+                  <span className="font-semibold">{user.name}</span>
                 </Link>
                 <button
                   type="button"
@@ -87,32 +41,42 @@ export function MainLayout() {
                     await logout();
                     navigate("/");
                   }}
-                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold hover:opacity-80 ${
+                    isHome ? "text-white drop-shadow" : "text-slate-900"
+                  }`}
                 >
-                  <LogOut className="size-4" />
-                  Logout
+                  <LogOut className="size-3.5" />
+                  로그아웃
                 </button>
               </>
             ) : (
               <Link
                 to="/login"
-                className="flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-1.5 text-white hover:bg-slate-800"
+                className={`flex items-center gap-1.5 rounded-md border px-4 py-1.5 font-bold transition-colors ${
+                  isHome
+                    ? "border-white bg-transparent text-white hover:bg-white hover:text-slate-900"
+                    : "border-slate-900 bg-white text-slate-900 hover:bg-slate-900 hover:text-white"
+                }`}
               >
-                <LogIn className="size-4" />
-                Login
+                <LogIn className="size-3.5" />
+                로그인
               </Link>
             )}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+      <main
+        className={`mx-auto w-full flex-1 ${
+          isHome ? "max-w-none px-0 py-0" : "max-w-6xl px-6 py-8"
+        }`}
+      >
         <Outlet />
       </main>
 
       <footer className="border-t border-slate-200">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6 text-xs text-slate-500">
-          <span>© gongsaeng</span>
+          <span>© 공생 空生</span>
           <span>hierolabs</span>
         </div>
       </footer>
