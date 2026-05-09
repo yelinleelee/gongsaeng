@@ -1,52 +1,68 @@
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Search } from "lucide-react";
-import { listProperties } from "../lib/properties";
-import type { Property, PropertyFilters, PropertyType } from "../types/property";
-import { StayCard } from "../components/StayCard";
-import { ApiError } from "../lib/api";
+import { useEffect, useState } from "react";
+import {
+  Camera,
+  Heart,
+  MapPin,
+  Mic,
+  Music,
+  Package,
+  Search,
+  Users,
+} from "lucide-react";
+import { fetchCultureEvents, fetchFacilities } from "../data/seoul";
 
-const PROPERTY_TYPES: { value: PropertyType | ""; label: string }[] = [
-  { value: "", label: "전체" },
-  { value: "apartment", label: "아파트" },
-  { value: "house", label: "주택" },
-  { value: "villa", label: "빌라" },
-  { value: "guesthouse", label: "게스트하우스" },
-  { value: "hotel", label: "호텔" },
-  { value: "unique", label: "독특한 숙소" },
+interface Facility {
+  SVCID?: string;
+  SVCNM: string;
+  PLACENM: string;
+  AREANM: string;
+  PAYATNM: string;
+  IMGURL?: string;
+  SVCURL?: string;
+  MINCLASSNM?: string;
+  MAXCLASSNM?: string;
+  V_MAX?: string;
+}
+
+const CATEGORIES = [
+  { value: "전체", label: "전체", icon: <Package className="size-3.5" /> },
+  { value: "전시", label: "전시", icon: <Music className="size-3.5" /> },
+  { value: "팝업", label: "팝업", icon: <Package className="size-3.5" /> },
+  { value: "촬영", label: "촬영", icon: <Camera className="size-3.5" /> },
+  { value: "워크숍", label: "워크숍", icon: <Users className="size-3.5" /> },
+  { value: "공연", label: "공연", icon: <Mic className="size-3.5" /> },
+];
+
+const SORT_OPTIONS = [
+  { value: "default", label: "기본순" },
+  { value: "free", label: "무료 우선" },
+  { value: "name", label: "가나다순" },
 ];
 
 export function StaysPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [items, setItems] = useState<Property[]>([]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const filters = useMemo<PropertyFilters>(
-    () => ({
-      city: searchParams.get("city") ?? undefined,
-      property_type: (searchParams.get("property_type") as PropertyType) || undefined,
-      min_price: searchParams.get("min_price")
-        ? Number(searchParams.get("min_price"))
-        : undefined,
-      max_price: searchParams.get("max_price")
-        ? Number(searchParams.get("max_price"))
-        : undefined,
-      guests: searchParams.get("guests") ? Number(searchParams.get("guests")) : undefined,
-    }),
-    [searchParams],
-  );
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("전체");
+  const [freeOnly, setFreeOnly] = useState(false);
+  const [sort, setSort] = useState("default");
+  const [liked, setLiked] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listProperties(filters)
-      .then((data) => {
-        if (!cancelled) setItems(data);
-      })
-      .catch((err) => {
+    Promise.all([fetchFacilities(), fetchCultureEvents()])
+      .then(([sportData, cultureData]) => {
         if (cancelled) return;
-        setError(err instanceof ApiError ? err.message : "숙소를 불러오지 못했습니다");
+        const sportRows: Facility[] =
+          sportData?.ListPublicReservationSport?.row ?? [];
+        const cultureRows: Facility[] =
+          cultureData?.ListPublicReservationCulture?.row ?? [];
+        setFacilities([...cultureRows, ...sportRows]);
+      })
+      .catch(() => {
+        if (!cancelled) setError("데이터를 불러오지 못했습니다.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -54,101 +70,233 @@ export function StaysPage() {
     return () => {
       cancelled = true;
     };
-  }, [filters]);
+  }, []);
 
-  function setParam(key: string, value: string | undefined) {
-    const next = new URLSearchParams(searchParams);
-    if (value && value !== "") next.set(key, value);
-    else next.delete(key);
-    setSearchParams(next);
+  const filtered = facilities
+    .filter((f) => {
+      if (freeOnly && f.PAYATNM !== "무료") return false;
+      if (category !== "전체") {
+        const combined = `${f.SVCNM} ${f.MINCLASSNM ?? ""} ${f.MAXCLASSNM ?? ""}`;
+        if (!combined.includes(category)) return false;
+      }
+      if (query) {
+        const combined =
+          `${f.SVCNM} ${f.PLACENM} ${f.AREANM}`.toLowerCase();
+        if (!combined.includes(query.toLowerCase())) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sort === "free") {
+        if (a.PAYATNM === "무료" && b.PAYATNM !== "무료") return -1;
+        if (a.PAYATNM !== "무료" && b.PAYATNM === "무료") return 1;
+        return 0;
+      }
+      if (sort === "name") return a.SVCNM.localeCompare(b.SVCNM, "ko");
+      return 0;
+    });
+
+  function toggleLike(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setLiked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
   return (
-    <section className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Stays</h1>
-        <p className="text-sm text-slate-500">취향에 맞는 숙소를 찾아보세요.</p>
-      </header>
+    <div className="bg-white min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-4xl font-black tracking-tight text-slate-900 mb-6">
+          공간 찾기
+        </h1>
 
-      <form
-        onSubmit={(e) => e.preventDefault()}
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4"
-      >
-        <label className="flex flex-1 min-w-48 flex-col gap-1 text-xs text-slate-600">
-          도시
-          <div className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2">
-            <Search className="size-4 text-slate-400" />
-            <input
-              type="text"
-              defaultValue={filters.city ?? ""}
-              onBlur={(e) => setParam("city", e.target.value || undefined)}
-              placeholder="서울, 제주…"
-              className="w-full bg-transparent text-sm outline-none"
-            />
-          </div>
-        </label>
-
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
-          숙소 유형
-          <select
-            value={filters.property_type ?? ""}
-            onChange={(e) => setParam("property_type", e.target.value || undefined)}
-            className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+        {/* Category filter */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.value}
+              onClick={() => setCategory(c.value)}
+              className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-bold transition-colors
+                ${
+                  category === c.value
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
+                }`}
+            >
+              {c.icon}
+              {c.label}
+            </button>
+          ))}
+          <button
+            onClick={() => setFreeOnly(!freeOnly)}
+            className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-bold transition-colors
+              ${
+                freeOnly
+                  ? "border-emerald-600 bg-emerald-600 text-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
+              }`}
           >
-            {PROPERTY_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
+            무료만
+          </button>
+        </div>
+
+        {/* Search bar */}
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <Search className="size-4 text-slate-400 shrink-0" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="공간명, 지역 검색"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+          />
+        </div>
+      </div>
+
+      {/* Count + sort */}
+      {!loading && !error && (
+        <div className="mb-5 flex items-center justify-between">
+          <span className="text-base font-black text-slate-900">
+            공간{" "}
+            <span className="text-emerald-600">{filtered.length}곳</span>
+          </span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 outline-none"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
           </select>
-        </label>
-
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
-          인원
-          <input
-            type="number"
-            min={1}
-            defaultValue={filters.guests ?? ""}
-            onBlur={(e) => setParam("guests", e.target.value || undefined)}
-            className="w-24 rounded-md border border-slate-200 px-3 py-2 text-sm"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
-          최소 가격
-          <input
-            type="number"
-            min={0}
-            defaultValue={filters.min_price ?? ""}
-            onBlur={(e) => setParam("min_price", e.target.value || undefined)}
-            className="w-32 rounded-md border border-slate-200 px-3 py-2 text-sm"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
-          최대 가격
-          <input
-            type="number"
-            min={0}
-            defaultValue={filters.max_price ?? ""}
-            onBlur={(e) => setParam("max_price", e.target.value || undefined)}
-            className="w-32 rounded-md border border-slate-200 px-3 py-2 text-sm"
-          />
-        </label>
-      </form>
-
-      {loading && <p className="text-sm text-slate-500">Loading…</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      {!loading && !error && items.length === 0 && (
-        <p className="text-sm text-slate-500">조건에 맞는 숙소가 없습니다.</p>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((p) => (
-          <StayCard key={p.ID} property={p} />
-        ))}
+      {loading && (
+        <div className="flex justify-center py-24">
+          <span className="text-slate-400 font-semibold">불러오는 중...</span>
+        </div>
+      )}
+      {error && (
+        <p className="text-sm text-red-600 py-8">{error}</p>
+      )}
+
+      {!loading && !error && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.length === 0 ? (
+            <p className="col-span-full py-16 text-center text-sm font-semibold text-slate-400">
+              조건에 맞는 공간이 없습니다.
+            </p>
+          ) : (
+            filtered.map((f, i) => {
+              const id = f.SVCID ?? `${f.SVCNM}-${i}`;
+              return (
+                <FacilityCard
+                  key={id}
+                  facility={f}
+                  isLiked={liked.has(id)}
+                  onLike={(e) => toggleLike(id, e)}
+                />
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FacilityCard({
+  facility: f,
+  isLiked,
+  onLike,
+}: {
+  facility: Facility;
+  isLiked: boolean;
+  onLike: (e: React.MouseEvent) => void;
+}) {
+  const isFree = f.PAYATNM === "무료";
+
+  return (
+    <div
+      onClick={() => f.SVCURL && window.open(f.SVCURL, "_blank")}
+      className="group cursor-pointer"
+    >
+      {/* Image */}
+      <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100 mb-3">
+        {f.IMGURL ? (
+          <img
+            src={f.IMGURL}
+            alt={f.SVCNM}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-slate-100">
+            <svg
+              className="size-14 text-slate-300"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.2}
+                d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 20.25h18a.75.75 0 00.75-.75V6a.75.75 0 00-.75-.75H3.75A.75.75 0 003 6v13.5a.75.75 0 00.75.75z"
+              />
+            </svg>
+          </div>
+        )}
+
+        {/* Top-left tags */}
+        <div className="absolute top-3 left-3 flex gap-1.5">
+          {f.MINCLASSNM && (
+            <span className="rounded-md bg-slate-900/75 backdrop-blur-sm px-2.5 py-1 text-xs font-bold text-white">
+              {f.MINCLASSNM}
+            </span>
+          )}
+          {isFree && (
+            <span className="rounded-md bg-slate-900/75 backdrop-blur-sm px-2.5 py-1 text-xs font-bold text-white">
+              무료
+            </span>
+          )}
+        </div>
+
+        {/* Top-right bookmark */}
+        <button
+          onClick={onLike}
+          className="absolute top-3 right-3 transition-transform hover:scale-110"
+        >
+          <Heart
+            className={`size-5 drop-shadow transition-colors ${
+              isLiked
+                ? "fill-rose-500 text-rose-500"
+                : "fill-white/40 text-white"
+            }`}
+          />
+        </button>
       </div>
-    </section>
+
+      {/* Text content */}
+      <div className="px-1">
+        <h3 className="font-bold text-[15px] leading-snug text-slate-900 mb-0.5 line-clamp-1">
+          {f.SVCNM}
+        </h3>
+        <p className="text-sm text-slate-400 mb-1.5 truncate">
+          {f.AREANM}
+          {f.PLACENM ? ` · ${f.PLACENM}` : ""}
+          {f.V_MAX ? ` · 최대 ${f.V_MAX}명` : ""}
+        </p>
+        <p
+          className={`text-sm font-bold ${isFree ? "text-emerald-600" : "text-slate-800"}`}
+        >
+          {isFree ? "무료 대관" : f.PAYATNM || "유료"}
+        </p>
+      </div>
+    </div>
   );
 }
