@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Calendar,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ExternalLink,
   Heart,
@@ -11,9 +12,22 @@ import {
   MapPin,
   Share2,
 } from "lucide-react";
-import { fetchInstitutionFacilities } from "../data/seoul";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { fetchAllSpaces } from "../data/seoul";
 import { manualSpaces } from "../data/manualSpaces";
 import { NaverMap } from "../components/NaverMap";
+import { useFavorites } from "../auth/FavoritesContext";
+import { useAuth } from "../auth/AuthContext";
+import { trackRecentSpace } from "../lib/recentlyViewed";
 
 interface Facility {
   SVCID?: string;
@@ -29,6 +43,8 @@ interface Facility {
   SVCSTATNM?: string;
   X?: string;
   Y?: string;
+  ADDR?: string;
+  OPENHOURS?: string;
 }
 
 const MONTH_SUFFIX_RE = /\s*\(\d{2}\.\s*\d{1,2}월\)\s*$/;
@@ -40,12 +56,64 @@ const TIME_SLOTS = [
   "16-17시", "17-18시", "18-19시",
 ];
 
-// 서울시 생활인구 API 미연동 — 지역명으로 재현 가능한 모의값 생성
+// 서울시 생활인구 API 미연동 — 지역명으로 재현 가능한 시간대별 모의값 생성
+// 실제 도시 유동인구 패턴(아침 출근/점심/저녁 피크)을 모사
 function mockPopulation(district: string) {
   const hash = Array.from(district).reduce((a, c) => a + c.charCodeAt(0), 0);
-  const weekday = 8000 + (hash % 80) * 100;
-  const weekend = Math.round(weekday * 1.45);
-  return { weekday, weekend };
+  const peakWeekday = 8000 + (hash % 80) * 100;
+  const peakWeekend = Math.round(peakWeekday * 1.45);
+
+  // 24시간 비율 패턴 (0~1.0, 24개)
+  const weekdayPattern = [
+    0.15, 0.10, 0.08, 0.08, 0.12, 0.20, // 0-5시 (심야~새벽)
+    0.45, 0.80, 0.95, 0.75, 0.70, 0.85, // 6-11시 (출근~오전)
+    1.00, 0.90, 0.78, 0.75, 0.80, 0.95, // 12-17시 (점심~오후)
+    1.00, 0.92, 0.75, 0.55, 0.38, 0.22, // 18-23시 (퇴근~저녁)
+  ];
+  const weekendPattern = [
+    0.20, 0.15, 0.12, 0.10, 0.10, 0.15, // 0-5시
+    0.25, 0.40, 0.55, 0.70, 0.85, 0.95, // 6-11시
+    1.00, 1.00, 0.95, 0.92, 0.95, 1.00, // 12-17시 (주말은 오후 피크)
+    1.00, 0.95, 0.85, 0.70, 0.50, 0.30, // 18-23시
+  ];
+
+  // 노이즈로 district별 미세 차이 유지
+  const jitter = (h: number) => (((hash + h * 7) % 13) - 6) * 30;
+
+  const hourly = weekdayPattern.map((wd, h) => ({
+    hour: `${h}시`,
+    hourNum: h,
+    weekday: Math.max(0, Math.round(peakWeekday * wd + jitter(h))),
+    weekend: Math.max(0, Math.round(peakWeekend * weekendPattern[h] + jitter(h + 12))),
+  }));
+
+  const weekdayTotal = Math.round(hourly.reduce((s, h) => s + h.weekday, 0) / 24);
+  const weekendTotal = Math.round(hourly.reduce((s, h) => s + h.weekend, 0) / 24);
+
+  return { hourly, weekdayTotal, weekendTotal };
+}
+
+// 카운트업 애니메이션 — 0에서 target까지 ease-out cubic
+function useCountUp(target: number, duration = 1400): number {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (target === 0) {
+      setValue(0);
+      return;
+    }
+    let raf = 0;
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(target * eased));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
 }
 
 export function SpaceDetailPage() {
@@ -58,16 +126,73 @@ export function SpaceDetailPage() {
   const [allFacilities, setAllFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(!passed);
   const [error, setError] = useState<string | null>(null);
-  const [liked, setLiked] = useState(false);
+
+  const { isFavorite, toggle: toggleFavorite } = useFavorites();
+  const { user } = useAuth();
+  const favSvcId = facility?.SVCID ?? facility?.SVCNM ?? "";
+  const liked = favSvcId ? isFavorite(favSvcId) : false;
+
+  async function handleToggleLike() {
+    if (!facility || !favSvcId) return;
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    try {
+      await toggleFavorite({
+        svc_id: favSvcId,
+        svc_nm: facility.SVCNM,
+        place_nm: facility.PLACENM,
+        area_nm: facility.AREANM,
+        pay_at_nm: facility.PAYATNM,
+        img_url: facility.IMGURL,
+        svc_url: facility.SVCURL,
+        min_class_nm: facility.MINCLASSNM,
+        v_max: facility.V_MAX,
+        x: facility.X,
+        y: facility.Y,
+      });
+    } catch {
+      /* optimistic — Context 자동 복구 */
+    }
+  }
+
+  // 페이지 진입 시 최근 본 공간으로 기록
+  useEffect(() => {
+    if (!facility || !favSvcId) return;
+    trackRecentSpace({
+      svc_id: favSvcId,
+      svc_nm: facility.SVCNM,
+      place_nm: facility.PLACENM,
+      area_nm: facility.AREANM,
+      pay_at_nm: facility.PAYATNM,
+      img_url: facility.IMGURL,
+      min_class_nm: facility.MINCLASSNM,
+      v_max: facility.V_MAX,
+    });
+  }, [favSvcId, facility]);
   const [selectedSlot, setSelectedSlot] = useState<string>("13-14시");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!datePickerOpen) return;
+    function handleOutside(e: MouseEvent) {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
+        setDatePickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [datePickerOpen]);
 
   useEffect(() => {
     let cancelled = false;
-    fetchInstitutionFacilities()
-      .then((data) => {
+    fetchAllSpaces()
+      .then((rows) => {
         if (cancelled) return;
-        const rows: Facility[] = data?.ListPublicReservationInstitution?.row ?? [];
-        const all = [...rows, ...manualSpaces];
+        const all = [...(rows as Facility[]), ...manualSpaces];
         setAllFacilities(all);
         if (!facility && id) {
           const decoded = decodeURIComponent(id);
@@ -150,7 +275,7 @@ export function SpaceDetailPage() {
         )}
         <div className="absolute right-4 top-4 flex gap-2">
           <button
-            onClick={() => setLiked(!liked)}
+            onClick={handleToggleLike}
             className="rounded-full bg-white/90 p-2 shadow-sm backdrop-blur transition-colors hover:bg-white"
             aria-label="찜"
           >
@@ -195,7 +320,7 @@ export function SpaceDetailPage() {
                 ))}
               </div>
             </div>
-            <button onClick={() => setLiked(!liked)} className="mt-1 shrink-0" aria-label="찜">
+            <button onClick={handleToggleLike} className="mt-1 shrink-0" aria-label="찜">
               <Heart className={`size-5 ${liked ? "fill-rose-500 text-rose-500" : "text-slate-300"}`} />
             </button>
           </div>
@@ -210,7 +335,7 @@ export function SpaceDetailPage() {
               label="수용 인원"
               value={facility.V_MAX ? `최대 ${facility.V_MAX}명` : "정보 없음"}
             />
-            <InfoCard label="운영 시간" value="09:00~18:00" />
+            <InfoCard label="운영 시간" value={facility.OPENHOURS || "09:00~18:00"} />
           </div>
 
           {/* 공간 소개 */}
@@ -229,18 +354,141 @@ export function SpaceDetailPage() {
               <LineChart className="size-4 text-emerald-600" />
               서울시 데이터 인사이트
             </h2>
+
+            {/* 카운트업 통계 카드 2개 */}
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <StatCard
-                label="주변 유동인구"
-                value={`${population.weekday.toLocaleString()}명`}
-                sub={`일 평균 · ${facility.AREANM}`}
+              <AnimatedStat
+                label="평일 평균 유동인구"
+                target={population.weekdayTotal}
+                unit="명/시"
+                sub={`${facility.AREANM} · 시간당`}
+                accent="slate"
               />
-              <StatCard
-                label="주말 유동인구"
-                value={`${population.weekend.toLocaleString()}명`}
-                sub="토·일 평균"
+              <AnimatedStat
+                label="주말 평균 유동인구"
+                target={population.weekendTotal}
+                unit="명/시"
+                sub="토·일 시간당"
+                accent="emerald"
               />
             </div>
+
+            {/* 시간대별 유동인구 막대 그래프 */}
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-bold text-slate-900">시간대별 유동인구</p>
+                <div className="flex items-center gap-3 text-[11px] font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-sm bg-slate-400" />
+                    평일
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-sm bg-emerald-500" />
+                    주말
+                  </span>
+                </div>
+              </div>
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={population.hourly}
+                    margin={{ top: 4, right: 4, left: -16, bottom: 0 }}
+                    barCategoryGap="20%"
+                  >
+                    <CartesianGrid stroke="#f1f5f9" vertical={false} />
+                    <XAxis
+                      dataKey="hourNum"
+                      ticks={[0, 6, 12, 18, 23]}
+                      tickFormatter={(v) => `${v}시`}
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={48}
+                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(15,23,42,0.04)" }}
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "1px solid #e2e8f0",
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                      labelFormatter={(v) => `${v}시`}
+                      formatter={(value: number, name: string) => [
+                        `${value.toLocaleString()}명`,
+                        name === "weekday" ? "평일" : "주말",
+                      ]}
+                    />
+                    <Bar dataKey="weekday" fill="#94a3b8" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="weekend" fill="#10b981" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* 평일 vs 주말 일평균 비교 */}
+            <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
+              <p className="mb-3 text-sm font-bold text-slate-900">평일 vs 주말 평균</p>
+              <div className="h-32 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { name: "평일", value: population.weekdayTotal, fill: "#94a3b8" },
+                      { name: "주말", value: population.weekendTotal, fill: "#10b981" },
+                    ]}
+                    layout="vertical"
+                    margin={{ top: 0, right: 24, left: 0, bottom: 0 }}
+                  >
+                    <XAxis type="number" hide />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={{ fontSize: 13, fill: "#0f172a", fontWeight: 700 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={48}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(15,23,42,0.04)" }}
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "1px solid #e2e8f0",
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                      formatter={(value: number) => [`${value.toLocaleString()}명`, "시간당 평균"]}
+                    />
+                    <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={28}>
+                      {[
+                        { fill: "#94a3b8" },
+                        { fill: "#10b981" },
+                      ].map((entry, i) => (
+                        <Cell key={i} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                주말이 평일 대비{" "}
+                <span className="font-bold text-emerald-700">
+                  {Math.round(
+                    ((population.weekendTotal - population.weekdayTotal) /
+                      population.weekdayTotal) *
+                      100,
+                  )}
+                  %
+                </span>{" "}
+                더 활발해요
+              </p>
+            </div>
+
             <p className="mt-2 text-xs text-slate-400">
               서울시 생활인구 데이터 기반 · 서울 열린데이터광장
             </p>
@@ -252,6 +500,9 @@ export function SpaceDetailPage() {
               <MapPin className="size-4 text-emerald-600" />
               위치 및 교통
             </h2>
+            {facility.ADDR && (
+              <p className="mt-2 text-sm font-medium text-slate-700">{facility.ADDR}</p>
+            )}
             <ul className="mt-3 space-y-2 text-sm text-slate-700">
               <li className="flex items-center gap-3">
                 <Badge color="emerald">지</Badge>
@@ -303,13 +554,36 @@ export function SpaceDetailPage() {
               {facility.PLACENM} 운영
             </p>
 
-            <button className="mt-4 flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 hover:border-slate-400">
-              <span className="flex items-center gap-2">
-                <Calendar className="size-4 text-slate-500" />
-                날짜 선택
-              </span>
-              <ChevronDown className="size-4 text-slate-500" />
-            </button>
+            <div ref={datePickerRef} className="relative mt-4">
+              <button
+                type="button"
+                onClick={() => setDatePickerOpen((v) => !v)}
+                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                  datePickerOpen
+                    ? "border-slate-900 text-slate-900"
+                    : "border-slate-200 text-slate-700 hover:border-slate-400"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Calendar className="size-4 text-slate-500" />
+                  {selectedDate ? formatDateLabel(selectedDate) : "날짜 선택"}
+                </span>
+                <ChevronDown
+                  className={`size-4 text-slate-500 transition-transform ${
+                    datePickerOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {datePickerOpen && (
+                <InlineDatePicker
+                  value={selectedDate}
+                  onChange={(d) => {
+                    setSelectedDate(d);
+                    setDatePickerOpen(false);
+                  }}
+                />
+              )}
+            </div>
 
             <p className="mt-4 text-xs font-semibold text-slate-700">시간대 선택</p>
             <div className="mt-2 grid grid-cols-3 gap-1.5">
@@ -412,11 +686,40 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+function AnimatedStat({
+  label,
+  target,
+  unit,
+  sub,
+  accent,
+}: {
+  label: string;
+  target: number;
+  unit: string;
+  sub: string;
+  accent: "slate" | "emerald";
+}) {
+  const value = useCountUp(target);
+  const isEmerald = accent === "emerald";
   return (
-    <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
-      <p className="text-xs font-semibold text-emerald-700">{label}</p>
-      <p className="mt-1 text-xl font-black text-slate-900">{value}</p>
+    <div
+      className={`rounded-xl border px-4 py-3 ${
+        isEmerald
+          ? "border-emerald-100 bg-emerald-50/50"
+          : "border-slate-200 bg-slate-50/60"
+      }`}
+    >
+      <p
+        className={`text-xs font-semibold ${
+          isEmerald ? "text-emerald-700" : "text-slate-600"
+        }`}
+      >
+        {label}
+      </p>
+      <p className="mt-1 flex items-baseline gap-1 font-black text-slate-900">
+        <span className="text-2xl tabular-nums">{value.toLocaleString()}</span>
+        <span className="text-xs font-bold text-slate-500">{unit}</span>
+      </p>
       <p className="mt-0.5 text-[11px] text-slate-500">{sub}</p>
     </div>
   );
@@ -471,5 +774,114 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
       </span>
       <span>{children}</span>
     </li>
+  );
+}
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function formatDateLabel(d: Date) {
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
+}
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function InlineDatePicker({
+  value,
+  onChange,
+}: {
+  value: Date | null;
+  onChange: (d: Date) => void;
+}) {
+  const today = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }, []);
+  const [viewMonth, setViewMonth] = useState(() => {
+    const base = value ?? today;
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  return (
+    <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setViewMonth(new Date(year, month - 1, 1))}
+          className="rounded p-1 text-slate-600 hover:bg-slate-100"
+          aria-label="이전 달"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        <span className="text-sm font-bold text-slate-900">
+          {year}년 {month + 1}월
+        </span>
+        <button
+          type="button"
+          onClick={() => setViewMonth(new Date(year, month + 1, 1))}
+          className="rounded p-1 text-slate-600 hover:bg-slate-100"
+          aria-label="다음 달"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-400">
+        {WEEKDAYS.map((w, i) => (
+          <div
+            key={w}
+            className={i === 0 ? "text-rose-400" : i === 6 ? "text-sky-400" : ""}
+          >
+            {w}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={`empty-${i}`} />;
+          const date = new Date(year, month, d);
+          const isPast = date < today;
+          const isToday = isSameDay(date, today);
+          const isSelected = value ? isSameDay(date, value) : false;
+          const weekday = date.getDay();
+          const baseColor =
+            weekday === 0 ? "text-rose-500" : weekday === 6 ? "text-sky-500" : "text-slate-700";
+          return (
+            <button
+              key={d}
+              type="button"
+              disabled={isPast}
+              onClick={() => onChange(date)}
+              className={`flex aspect-square items-center justify-center rounded-md text-xs font-semibold transition-colors ${
+                isPast
+                  ? "cursor-not-allowed text-slate-300"
+                  : isSelected
+                  ? "bg-slate-900 text-white"
+                  : isToday
+                  ? `border border-emerald-500 ${baseColor} hover:bg-emerald-50`
+                  : `${baseColor} hover:bg-slate-100`
+              }`}
+            >
+              {d}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

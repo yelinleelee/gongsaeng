@@ -81,6 +81,10 @@ func main() {
 		user.POST("/upload/image", handler.UploadImage(cldClient))
 		user.POST("/upload/images", handler.UploadImages(cldClient))
 		user.DELETE("/upload/image", handler.DestroyImage(cldClient))
+
+		user.GET("/favorites", handler.ListFavorites(gormDB))
+		user.POST("/favorites", handler.AddFavorite(gormDB))
+		user.DELETE("/favorites/:svcId", handler.RemoveFavorite(gormDB))
 	}
 
 	host := r.Group("")

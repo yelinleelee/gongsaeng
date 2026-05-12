@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
+import { FavoritesProvider } from "./auth/FavoritesContext";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { MainLayout } from "./layout/MainLayout";
 import { HomePage } from "./pages/HomePage";
@@ -30,6 +31,7 @@ import { SuccessStep } from "./host/steps/SuccessStep";
 function App() {
   return (
     <AuthProvider>
+      <FavoritesProvider>
       <BrowserRouter>
         <Routes>
           <Route element={<MainLayout />}>
@@ -70,6 +72,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </FavoritesProvider>
     </AuthProvider>
   );
 }

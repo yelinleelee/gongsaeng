@@ -30,6 +30,7 @@ var Models = []any{
 	&model.Booking{},
 	&model.Review{},
 	&model.Message{},
+	&model.Favorite{},
 }
 
 func Migrate(db *gorm.DB) error {

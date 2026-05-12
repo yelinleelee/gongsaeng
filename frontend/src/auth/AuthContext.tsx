@@ -11,13 +11,32 @@ export type CurrentUser = {
   role: "guest" | "host";
   avatar: string;
   is_verified: boolean;
+  creator_type: string;
+  preferred_categories: string; // 콤마 구분
+  preferred_capacity: string;
+  preferred_districts: string;  // 콤마 구분
+  bio: string;
 };
+
+export type ProfileUpdate = Partial<
+  Pick<
+    CurrentUser,
+    | "name"
+    | "phone"
+    | "creator_type"
+    | "preferred_categories"
+    | "preferred_capacity"
+    | "preferred_districts"
+    | "bio"
+  >
+>;
 
 type AuthState = {
   ready: boolean;
   user: CurrentUser | null;
   loginWithGoogle: () => Promise<void>;
   becomeHost: () => Promise<void>;
+  updateProfile: (patch: ProfileUpdate) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -58,6 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async becomeHost() {
         const updated = await api<CurrentUser>("/auth/become-host", { method: "POST" });
+        setUser(updated);
+      },
+      async updateProfile(patch: ProfileUpdate) {
+        const updated = await api<CurrentUser>("/auth/me", {
+          method: "PATCH",
+          body: JSON.stringify(patch),
+        });
         setUser(updated);
       },
       async logout() {

@@ -17,13 +17,18 @@ type googleLoginRequest struct {
 }
 
 type userResponse struct {
-	ID         uint   `json:"id"`
-	Email      string `json:"email"`
-	Name       string `json:"name"`
-	Phone      string `json:"phone"`
-	Role       string `json:"role"`
-	Avatar     string `json:"avatar"`
-	IsVerified bool   `json:"is_verified"`
+	ID                  uint   `json:"id"`
+	Email               string `json:"email"`
+	Name                string `json:"name"`
+	Phone               string `json:"phone"`
+	Role                string `json:"role"`
+	Avatar              string `json:"avatar"`
+	IsVerified          bool   `json:"is_verified"`
+	CreatorType         string `json:"creator_type"`
+	PreferredCategories string `json:"preferred_categories"`
+	PreferredCapacity   string `json:"preferred_capacity"`
+	PreferredDistricts  string `json:"preferred_districts"`
+	Bio                 string `json:"bio"`
 }
 
 type loginUserResponse struct {
@@ -33,13 +38,18 @@ type loginUserResponse struct {
 
 func toUserResponse(u model.User) userResponse {
 	return userResponse{
-		ID:         u.ID,
-		Email:      u.Email,
-		Name:       u.Name,
-		Phone:      u.Phone,
-		Role:       u.Role,
-		Avatar:     u.Avatar,
-		IsVerified: u.IsVerified,
+		ID:                  u.ID,
+		Email:               u.Email,
+		Name:                u.Name,
+		Phone:               u.Phone,
+		Role:                u.Role,
+		Avatar:              u.Avatar,
+		IsVerified:          u.IsVerified,
+		CreatorType:         u.CreatorType,
+		PreferredCategories: u.PreferredCategories,
+		PreferredCapacity:   u.PreferredCapacity,
+		PreferredDistricts:  u.PreferredDistricts,
+		Bio:                 u.Bio,
 	}
 }
 
@@ -118,8 +128,13 @@ func UserMe(db *gorm.DB) gin.HandlerFunc {
 }
 
 type updateMeRequest struct {
-	Name  *string `json:"name"`
-	Phone *string `json:"phone"`
+	Name                *string `json:"name"`
+	Phone               *string `json:"phone"`
+	CreatorType         *string `json:"creator_type"`
+	PreferredCategories *string `json:"preferred_categories"`
+	PreferredCapacity   *string `json:"preferred_capacity"`
+	PreferredDistricts  *string `json:"preferred_districts"`
+	Bio                 *string `json:"bio"`
 }
 
 func UpdateMe(db *gorm.DB) gin.HandlerFunc {
@@ -136,6 +151,21 @@ func UpdateMe(db *gorm.DB) gin.HandlerFunc {
 		}
 		if req.Phone != nil {
 			updates["phone"] = *req.Phone
+		}
+		if req.CreatorType != nil {
+			updates["creator_type"] = *req.CreatorType
+		}
+		if req.PreferredCategories != nil {
+			updates["preferred_categories"] = *req.PreferredCategories
+		}
+		if req.PreferredCapacity != nil {
+			updates["preferred_capacity"] = *req.PreferredCapacity
+		}
+		if req.PreferredDistricts != nil {
+			updates["preferred_districts"] = *req.PreferredDistricts
+		}
+		if req.Bio != nil {
+			updates["bio"] = *req.Bio
 		}
 		if len(updates) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "nothing to update"})

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { ChevronRight, Minus, Plus } from "lucide-react";
 import { fetchCultureEvents, fetchInstitutionFacilities } from "../data/seoul";
 import { manualSpaces } from "../data/manualSpaces";
 
@@ -16,35 +16,97 @@ interface Facility {
   V_MAX?: string;
 }
 
-const HOME_CATEGORIES = ["전체", "전시·관람", "공연장", "다목적실", "녹화·촬영", "강당·강의실"];
-
-const CATEGORY_MAP: Record<string, string[]> = {
-  "전시·관람": ["전시/관람", "문화행사"],
-  "공연장": ["공연장"],
-  "다목적실": ["다목적실", "회의실"],
-  "강당·강의실": ["강당", "강의실"],
-  "녹화·촬영": ["녹화장소"],
-};
-
 const ALLOWED_CULTURE = new Set(["전시/관람", "문화행사"]);
 const ALLOWED_INSTITUTION = new Set(["강당", "광장", "녹화장소", "공연장", "회의실", "다목적실", "강의실"]);
+
+// "SPACES" 섹션의 3개 카테고리 카드
+// label은 StaysPage의 FIXED_CATEGORIES 키와 일치해야 함 (URL 파라미터 매칭)
+const SPACE_CATEGORIES: {
+  label: string;
+  tag: string;
+  tagColor: string;
+  image: string;
+}[] = [
+  { label: "공연장", tag: "Performing", tagColor: "#CCFF00", image: "/drawing1.jpg" },
+  { label: "전시장", tag: "Exhibition", tagColor: "#FF80D5", image: "/drawing2.jpg" },
+  { label: "광장 및 야외", tag: "Outdoor", tagColor: "#FF9933", image: "/drawing3.jpg" },
+];
+
+// 카드 클릭 시 StaysPage 카테고리 매칭 (StaysPage의 FIXED_CATEGORIES와 정확히 일치하는 키로 변환)
+const CATEGORY_QUERY: Record<string, string> = {
+  "공연장": "공연장",
+  "전시장": "전시·관람",
+  "광장 및 야외": "광장·야외",
+};
+
+// "FAQ" 섹션 질문/답변
+const FAQ_ITEMS: { q: string; a: string }[] = [
+  {
+    q: "잇다는 무료 서비스인가요?",
+    a: "네, 잇다는 무료로 이용할 수 있어요. 공간 예약은 서울시 공공서비스예약 페이지에서 진행됩니다.",
+  },
+  {
+    q: "실제 예약은 어디서 하나요?",
+    a: "공간 상세 페이지에서 날짜와 시간을 선택한 후 서울시 예약 페이지로 이동해 최종 예약할 수 있어요.",
+  },
+  {
+    q: "AI 추천은 어떻게 작동하나요?",
+    a: "창작자 유형, 목적, 인원, 예산, 지역을 입력하면 Claude AI가 최적의 공간 3곳을 추천해드려요.",
+  },
+  {
+    q: "어떤 공간들이 있나요?",
+    a: "공연장, 전시·관람, 다목적실, 강당·강의실, 녹화·촬영, 광장·야외 등 서울시 공공공간 62곳이 있어요.",
+  },
+  {
+    q: "공간 정보가 최신인가요?",
+    a: "서울시 공공데이터 API와 실시간 연동되어 항상 최신 정보를 제공해요.",
+  },
+];
+
+// "FOR CREATORS" 섹션의 4개 타겟 유저 카드
+const CREATOR_CATEGORIES: {
+  emoji: string;
+  title: string;
+  description: string;
+}[] = [
+  {
+    emoji: "🎨",
+    title: "Emerging Artists",
+    description: "전시·팝업을 위한 첫 공간을 찾는 창작자",
+  },
+  {
+    emoji: "🏷️",
+    title: "Small Brands",
+    description: "팝업스토어·브랜드 이벤트를 기획하는 팀",
+  },
+  {
+    emoji: "🎭",
+    title: "Performers",
+    description: "소규모 공연·워크숍 공간이 필요한 아티스트",
+  },
+  {
+    emoji: "📸",
+    title: "Content Creators",
+    description: "촬영·녹화를 위한 공간을 찾는 크리에이터",
+  },
+];
 
 const FULL_BLEED: React.CSSProperties = {
   width: "100vw",
   marginLeft: "calc(50% - 50vw)",
 };
 
-const HERO_IMAGES = ["/main1.jpg", "/main2.jpg", "/main3.jpg", "/main4.jpg"];
+const HERO_IMAGES = ["/main1.jpg", "/main3.jpg", "/main4.jpg"];
 
 export function HomePage() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [category, setCategory] = useState("전체");
   const [heroIdx, setHeroIdx] = useState(0);
+  const [faqOpen, setFaqOpen] = useState<number | null>(0);
 
   useEffect(() => {
     const id = setInterval(() => {
       setHeroIdx((i) => (i + 1) % HERO_IMAGES.length);
-    }, 4000);
+    }, 3000);
     return () => clearInterval(id);
   }, []);
 
@@ -70,13 +132,6 @@ export function HomePage() {
       })
       .catch(() => setFacilities([]));
   }, []);
-
-  const categorized =
-    category === "전체"
-      ? facilities
-      : facilities.filter((f) => CATEGORY_MAP[category]?.includes(f.MINCLASSNM ?? ""));
-
-  const freeSpaces = facilities.filter((f) => f.PAYATNM === "무료");
 
   return (
     <div>
@@ -159,158 +214,183 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── 이런 창작 어때요? ── */}
-      <section className="bg-white py-16" style={FULL_BLEED}>
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-6 flex items-end justify-between">
-            <h2 className="text-3xl font-black text-slate-900">이런 창작 어때요?</h2>
-            <Link
-              to="/stays"
-              className="flex items-center gap-0.5 text-sm font-bold text-slate-400 hover:text-slate-900"
-            >
-              전체 보기 <ChevronRight className="size-4" />
-            </Link>
+      {/* ── SPACES ── */}
+      <section className="bg-white py-20" style={FULL_BLEED}>
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-[18px] lg:grid-cols-[auto_1fr] lg:items-start lg:gap-14">
+          {/* Left: title (전체 85% 사이즈) */}
+          <div className="shrink-0 lg:pt-2">
+            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-slate-900 lg:text-5xl">
+              SPACES
+            </h2>
+            <p className="mt-4 text-lg font-black leading-snug text-slate-900 lg:text-xl">
+              공간이 없어서<br />창작을 포기하지 마세요
+            </p>
           </div>
 
-          {/* Category tabs */}
-          <div className="mb-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {HOME_CATEGORIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => setCategory(c)}
-                className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-bold transition-colors ${
-                  category === c
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-900"
-                }`}
-              >
-                {c}
-              </button>
+          {/* Right: 3 cards — 세로 구분선만 (조금 두껍게), 위아래 가로선 제거 */}
+          <div className="grid grid-cols-3 divide-x-2 divide-slate-900">
+            {SPACE_CATEGORIES.map((c) => (
+              <CategoryCard key={c.label} category={c} />
             ))}
           </div>
-
-          {/* Horizontal scroll */}
-          <div className="flex gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {categorized.length === 0 ? (
-              <p className="shrink-0 py-12 text-sm text-slate-400">
-                {facilities.length === 0 ? "불러오는 중..." : "해당 카테고리 공간이 없습니다."}
-              </p>
-            ) : (
-              categorized
-                .slice(0, 12)
-                .map((f, i) => <SpaceCard key={f.SVCID ?? i} facility={f} />)
-            )}
-          </div>
         </div>
       </section>
 
-      {/* ── 무료로 쓸 수 있는 공간 ── */}
-      <section className="bg-[#F5F0E8] py-16" style={FULL_BLEED}>
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-7 flex items-end justify-between">
-            <div>
-              <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-emerald-600">
-                Free Spaces
-              </p>
-              <h2 className="text-3xl font-black text-slate-900">무료로 쓸 수 있는 공간</h2>
+      {/* ── FOR CREATORS ── */}
+      <section className="border-y-2 border-slate-900 bg-[#EFF7DC]" style={FULL_BLEED}>
+        <div className="mx-auto grid max-w-6xl grid-cols-1 px-[18px] lg:grid-cols-[320px_1fr]">
+          {/* Left: 컬럼 폭은 grid 가 320px 로 고정. pr-12 만 적용 (max-w 불필요). py 는 왼쪽에만, 상단 60px */}
+          <div className="py-20 lg:py-24 lg:pr-12 lg:pt-[60px]">
+            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-slate-900 lg:text-5xl">
+              FOR<br />CREATORS
+            </h2>
+            <p className="mt-4 text-lg font-black leading-snug text-slate-900 lg:text-xl">
+              잇다는 누구를 위한<br />플랫폼일까요?
+            </p>
+          </div>
+
+          {/* Right: wrapper는 viewport 우측까지 확장 (+18px 보정), 안쪽에 pr-[40px] 로 블록 우측 패딩 40px */}
+          <div className="lg:-mr-[max(0px,calc((100vw-1152px)/2+18px))] lg:pr-[40px]">
+            <div className="flex h-full flex-col lg:border-x-2 lg:border-slate-900">
+              {/* Hero image — 보더 안쪽 꽉 채움 */}
+              <div className="aspect-[16/8] w-full shrink-0 overflow-hidden bg-slate-100">
+                <img
+                  src="/section3.jpg"
+                  alt="Creators"
+                  loading="lazy"
+                  className="block h-full w-full object-cover"
+                />
+              </div>
+
+              {/* 2x2 grid — divide 대신 nth-child 기반 명시적 border 로 두께 doubling 방지 */}
+              <div className="grid flex-1 grid-cols-2 border-t-2 border-slate-900">
+                {CREATOR_CATEGORIES.map((c, i) => (
+                  <div
+                    key={c.title}
+                    className={`flex flex-col items-center justify-center px-6 py-7 text-center lg:px-8 ${
+                      i % 2 === 1 ? "border-l-2 border-slate-900" : ""
+                    } ${i >= 2 ? "border-t-2 border-slate-900" : ""}`}
+                  >
+                    <h3 className="text-sm font-black leading-snug text-slate-900 lg:text-base">
+                      {c.title}
+                    </h3>
+                    <p
+                      className="mt-2 text-sm leading-snug text-slate-900"
+                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontWeight: 500 }}
+                    >
+                      {c.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <Link
-              to="/stays"
-              className="flex items-center gap-0.5 text-sm font-bold text-slate-400 hover:text-slate-900"
-            >
-              전체 보기 <ChevronRight className="size-4" />
-            </Link>
-          </div>
-
-          <div className="flex gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {freeSpaces.length === 0 ? (
-              <p className="shrink-0 py-12 text-sm text-slate-400">불러오는 중...</p>
-            ) : (
-              freeSpaces
-                .slice(0, 12)
-                .map((f, i) => <SpaceCard key={f.SVCID ?? i} facility={f} beige />)
-            )}
           </div>
         </div>
       </section>
 
-      {/* ── AI 매칭 배너 ── */}
-      <section className="bg-slate-950 py-28" style={FULL_BLEED}>
-        <div className="mx-auto max-w-6xl px-6 text-center">
-          <p className="mb-5 text-[11px] font-black uppercase tracking-[0.35em] text-[#CCFF00]">
-            AI Matching
-          </p>
-          <h2
-            className="mb-5 font-black leading-[1.1] tracking-tight text-white"
-            style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)" }}
-          >
-            어떤 창작을<br />계획하고 있나요?
-          </h2>
-          <p className="mb-12 text-base text-white/40">
-            목적, 인원, 지역을 알려주면 딱 맞는 공간을 찾아드립니다
-          </p>
-          <Link
-            to="/neighborhood"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#CCFF00] px-8 py-4 text-base font-black text-slate-900 transition-opacity hover:opacity-85"
-          >
-            추천받기 <ArrowRight className="size-5" />
-          </Link>
-        </div>
-      </section>
-    </div>
-  );
-}
+      {/* ── FAQ ── */}
+      <section className="bg-black py-20" style={FULL_BLEED}>
+        <div className="mx-auto grid max-w-6xl grid-cols-1 px-[18px] lg:grid-cols-[320px_1fr] lg:items-start">
+          {/* Left: FAQ title — FOR CREATORS 와 동일하게 컬럼 폭 320px 고정 → right 시작 x 정확히 일치 */}
+          <div className="shrink-0 lg:pr-12 lg:pt-2">
+            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-white lg:text-5xl">
+              FAQ
+            </h2>
+          </div>
 
-function SpaceCard({
-  facility: f,
-  beige = false,
-}: {
-  facility: Facility;
-  beige?: boolean;
-}) {
-  const isFree = f.PAYATNM === "무료";
-  return (
-    <div
-      onClick={() => f.SVCURL && window.open(f.SVCURL, "_blank")}
-      className="group w-52 shrink-0 cursor-pointer"
-    >
-      <div className="relative mb-3 h-36 w-full overflow-hidden rounded-xl bg-slate-100">
-        {f.IMGURL ? (
-          <img
-            src={f.IMGURL}
-            alt={f.SVCNM}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div
-            className={`flex h-full items-center justify-center ${beige ? "bg-[#E8E0D0]" : "bg-slate-100"}`}
-          >
-            <svg
-              className={`size-10 ${beige ? "text-[#C4B89A]" : "text-slate-300"}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.2}
-                d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 20.25h18a.75.75 0 00.75-.75V6a.75.75 0 00-.75-.75H3.75A.75.75 0 003 6v13.5a.75.75 0 00.75.75z"
+          {/* Right: accordion list (다크 테마) */}
+          <div className="border-t border-white">
+            {FAQ_ITEMS.map((item, i) => (
+              <FAQItem
+                key={item.q}
+                question={item.q}
+                answer={item.a}
+                open={faqOpen === i}
+                onToggle={() => setFaqOpen(faqOpen === i ? null : i)}
               />
-            </svg>
+            ))}
           </div>
-        )}
-        {isFree && (
-          <span className="absolute top-2 left-2 rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-black text-white">
-            무료
-          </span>
-        )}
-      </div>
-      <p className="mb-0.5 truncate text-sm font-bold text-slate-900">{f.SVCNM}</p>
-      <p className="truncate text-xs text-slate-400">
-        {f.AREANM}
-        {f.PLACENM ? ` · ${f.PLACENM}` : ""}
-      </p>
+        </div>
+      </section>
+
     </div>
   );
 }
+
+function FAQItem({
+  question,
+  answer,
+  open,
+  onToggle,
+}: {
+  question: string;
+  answer: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="border-b border-white">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-4 py-5 text-left transition-colors hover:bg-white/5"
+      >
+        <span className="text-base font-black text-white lg:text-lg">
+          {question}
+        </span>
+        {open ? (
+          <Minus className="size-5 shrink-0 text-white" />
+        ) : (
+          <Plus className="size-5 shrink-0 text-white" />
+        )}
+      </button>
+      {open && (
+        <p
+          className="pb-5 pr-10 text-sm leading-relaxed text-slate-300"
+          style={{ fontFamily: "'Noto Sans KR', sans-serif", fontWeight: 500 }}
+        >
+          {answer}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CategoryCard({
+  category,
+}: {
+  category: { label: string; tag: string; tagColor: string; image: string };
+}) {
+  const queryLabel = CATEGORY_QUERY[category.label] ?? category.label;
+  return (
+    <Link
+      to={`/stays?category=${encodeURIComponent(queryLabel)}`}
+      className="group flex flex-col items-center px-6 py-[60px] transition-colors hover:bg-slate-50"
+    >
+      {/* Drawing — 기본 110% 스케일, hover 시 추가 확대 */}
+      <div className="aspect-[5/4] w-full overflow-hidden">
+        <img
+          src={category.image}
+          alt={category.label}
+          loading="lazy"
+          className="h-full w-full scale-110 object-contain transition-transform duration-500 ease-out group-hover:scale-[1.18]"
+        />
+      </div>
+
+      {/* Title */}
+      <h3 className="mt-6 text-2xl font-black text-slate-900">
+        {category.label}
+      </h3>
+
+      {/* Highlighter tag */}
+      <span
+        className="mt-3 inline-block rounded-md px-3 py-1 text-sm font-black tracking-wide text-slate-900"
+        style={{ backgroundColor: category.tagColor }}
+      >
+        {category.tag}
+      </span>
+    </Link>
+  );
+}
+

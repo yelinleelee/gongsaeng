@@ -1,11 +1,15 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LogIn, LogOut, UserCircle } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
+import { useMatchPolling } from "../lib/useMatchPolling";
 
 export function MainLayout() {
   const { user, ready, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 로그인 + 알림 ON + 사용자 선호 입력 했을 때만 10분 간격 매칭 폴링
+  useMatchPolling();
   const isHome = location.pathname === "/";
   const logoSrc = isHome ? "/logo-1.png" : "/logo-2.png";
 
@@ -74,10 +78,48 @@ export function MainLayout() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-slate-200">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6 text-xs text-slate-500">
-          <span>© 공생 空生</span>
-          <span>hierolabs</span>
+      <footer className="border-t border-slate-300 bg-slate-200">
+        {/* px-[18px] + grid-cols-[320px_1fr_auto] 로 FAQ 섹션의 우측 컨텐츠 시작점(=320px)에 2단 정확히 정렬. 3단은 auto + 1fr 로 우측 끝에 붙음 */}
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-[18px] py-6 md:grid-cols-[320px_1fr_auto]">
+          {/* Logo */}
+          <div>
+            <img
+              src="/logo-2.png"
+              alt="ITDA"
+              className="h-[60px] w-auto"
+            />
+          </div>
+
+          {/* Data sources + copyright */}
+          <div
+            className="text-xs text-slate-600"
+            style={{ fontFamily: "'Noto Sans KR', sans-serif", fontWeight: 500 }}
+          >
+            <p className="font-black text-slate-900">데이터 출처</p>
+            <ul className="mt-2 space-y-1">
+              <li>서울 열린데이터광장</li>
+              <li>서울시 공공서비스예약</li>
+              <li>네이버 지도 API</li>
+            </ul>
+            <p className="mt-4 text-slate-400">© 2026 ITDA.</p>
+          </div>
+
+          {/* Company info + legal */}
+          <div
+            className="text-xs text-slate-600"
+            style={{ fontFamily: "'Noto Sans KR', sans-serif", fontWeight: 500 }}
+          >
+            <p>상호 : 잇다</p>
+            <p className="mt-1">대표 : 아로</p>
+            <div className="mt-4 space-y-1.5">
+              <a href="#" className="block transition-colors hover:text-slate-900">
+                개인정보 처리 방침
+              </a>
+              <a href="#" className="block transition-colors hover:text-slate-900">
+                서비스 이용약관
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

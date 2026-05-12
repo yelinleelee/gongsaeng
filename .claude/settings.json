@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git fsck *)",
-      "Bash(grep -iE \"\\\\.\\(jpg|jpeg|png|webp\\)$\")"
+      "Bash(grep -iE \"\\\\.\\(jpg|jpeg|png|webp\\)$\")",
+      "Bash(grep -n \"^function SpaceCard\\\\|^}$\" src/pages/HomePage.tsx)"
     ]
   }
 }

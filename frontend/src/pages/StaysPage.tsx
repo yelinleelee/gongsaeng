@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Camera,
   Frame,
@@ -13,9 +13,11 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { fetchInstitutionFacilities } from "../data/seoul";
+import { fetchAllSpaces } from "../data/seoul";
 import { manualSpaces } from "../data/manualSpaces";
 import { NaverMap } from "../components/NaverMap";
+import { useFavorites } from "../auth/FavoritesContext";
+import { useAuth } from "../auth/AuthContext";
 
 interface Facility {
   SVCID?: string;
@@ -31,6 +33,9 @@ interface Facility {
   SVCSTATNM?: string;
   X?: string;
   Y?: string;
+  ADDR?: string;
+  OPENHOURS?: string;
+  FACLTYNM?: string;
 }
 
 interface DisplayFacility extends Facility {
@@ -46,14 +51,30 @@ function parseMonthSuffix(svcnm: string): { year: number; month: number } | null
   return { year: parseInt(m[1], 10), month: parseInt(m[2], 10) };
 }
 
+// SVCNM에 흔히 붙는 시간/기수/회차/시각 패턴들도 함께 제거 (그룹 대표 이름 깔끔하게)
+const TIME_SLOT_PATTERNS: RegExp[] = [
+  MONTH_SUFFIX_RE,                              // "(25.10월)"
+  /\s*\(\s*\d{1,2}:\d{2}\s*[~\-]\s*\d{1,2}:\d{2}\s*\)\s*$/,  // "(09:00~12:00)"
+  /\s*\(\s*(오전|오후|저녁|야간)(반)?\s*\)\s*$/,             // "(오전)", "(오후반)"
+  /\s+(오전|오후|저녁|야간)반\s*$/,                          // "오전반", "오후반"
+  /\s*\(\s*\d+부\s*\)\s*$/,                                  // "(1부)"
+  /\s+\d+부\s*$/,                                            // "1부", "2부"
+  /\s*\d+회차\s*$/,                                          // "5회차"
+];
+
 function cleanSvcName(svcnm: string): string {
-  return svcnm.replace(MONTH_SUFFIX_RE, "").trim();
+  let s = svcnm;
+  for (const re of TIME_SLOT_PATTERNS) s = s.replace(re, "");
+  return s.trim();
 }
 
 function dedupeByPlace(rows: Facility[]): DisplayFacility[] {
   const groups = new Map<string, Facility[]>();
   for (const f of rows) {
-    const key = `${f.PLACENM ?? ""}__${f.MINCLASSNM ?? ""}__${cleanSvcName(f.SVCNM)}`;
+    // 같은 시설(FACLTYNM, 없으면 PLACENM) + 같은 카테고리(MINCLASSNM) 묶음
+    // SVCNM은 키에서 제외 — 시간대 변형 SVCNM을 모두 한 카드로 통합
+    const facility = f.FACLTYNM ?? f.PLACENM ?? cleanSvcName(f.SVCNM);
+    const key = `${facility}__${f.MINCLASSNM ?? ""}`;
     let arr = groups.get(key);
     if (!arr) {
       arr = [];
@@ -63,7 +84,16 @@ function dedupeByPlace(rows: Facility[]): DisplayFacility[] {
   }
 
   return Array.from(groups.values()).map((group) => {
+    // 대표값 선정: 접수중 → 이미지 있음 → 가장 빠른 월 순으로 우선
     const sorted = [...group].sort((a, b) => {
+      const aOpen = a.SVCSTATNM === "접수중" ? 0 : 1;
+      const bOpen = b.SVCSTATNM === "접수중" ? 0 : 1;
+      if (aOpen !== bOpen) return aOpen - bOpen;
+
+      const aImg = a.IMGURL ? 0 : 1;
+      const bImg = b.IMGURL ? 0 : 1;
+      if (aImg !== bImg) return aImg - bImg;
+
       const am = parseMonthSuffix(a.SVCNM);
       const bm = parseMonthSuffix(b.SVCNM);
       if (!am && !bm) return 0;
@@ -71,10 +101,11 @@ function dedupeByPlace(rows: Facility[]): DisplayFacility[] {
       if (!bm) return -1;
       return am.year !== bm.year ? am.year - bm.year : am.month - bm.month;
     });
-    const earliest = sorted[0];
-    const months = sorted
+    const representative = sorted[0];
+    const months = group
       .map((f) => parseMonthSuffix(f.SVCNM))
-      .filter((m): m is { year: number; month: number } => !!m);
+      .filter((m): m is { year: number; month: number } => !!m)
+      .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month));
 
     let periodLabel: string | undefined;
     if (months.length === 1) {
@@ -89,8 +120,8 @@ function dedupeByPlace(rows: Facility[]): DisplayFacility[] {
     }
 
     return {
-      ...earliest,
-      displayName: cleanSvcName(earliest.SVCNM),
+      ...representative,
+      displayName: cleanSvcName(representative.SVCNM),
       periodLabel,
     };
   });
@@ -105,7 +136,11 @@ const SEOUL_DISTRICTS = [
 
 const CAPACITY_OPTIONS = ["10명 이하", "10~30명", "30~100명", "100명 이상"];
 
-const ALLOWED_INSTITUTION = new Set(["강당", "광장", "녹화장소", "공연장", "회의실", "다목적실", "강의실"]);
+// 3개 예약 API(Institution / Culture / Sport)에서 노출할 카테고리.
+// "전시/관람"은 ListPublicReservationCulture 에 들어있는 예약 가능 전시를 위한 것
+const ALLOWED_INSTITUTION = new Set([
+  "강당", "광장", "녹화장소", "공연장", "회의실", "다목적실", "강의실", "전시/관람",
+]);
 
 // 일반 관람/체험 프로그램(시설대관이 아님) 제외용 키워드
 const EXCLUDED_NAME_KEYWORDS = ["해설", "체험", "교육", "강좌", "수업", "탐방", "프로그램"];
@@ -133,12 +168,45 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   "녹화·촬영": <Camera className="size-4" />,
 };
 
+// 카테고리별 호버 형광 색상 (메인 SPACES 섹션 컬러와 톤 통일)
+// Tailwind JIT가 인식하도록 클래스 문자열 그대로 작성
+const CATEGORY_HOVER: Record<string, string> = {
+  "공연장": "hover:bg-[#CCFF00]",       // Performing (메인 태그 컬러)
+  "전시·관람": "hover:bg-[#FF80D5]",    // Exhibition
+  "광장·야외": "hover:bg-[#FF9933]",    // Outdoor
+  "다목적실": "hover:bg-[#00E5FF]",     // 시안
+  "강당·강의실": "hover:bg-[#FFB627]",  // 주황 노랑
+  "회의실": "hover:bg-[#B388FF]",       // 라벤더
+  "녹화·촬영": "hover:bg-[#FF5C5C]",    // 코랄
+};
+
 export function StaysPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("전체");
+  const [category, setCategory] = useState(() => {
+    const fromUrl = searchParams.get("category");
+    return fromUrl && FIXED_CATEGORIES.includes(fromUrl) ? fromUrl : "전체";
+  });
+
+  // URL ?category= 가 외부에서 변경되면 상태 동기화 (브라우저 뒤로/앞으로 등)
+  useEffect(() => {
+    const fromUrl = searchParams.get("category") ?? "전체";
+    const expected = FIXED_CATEGORIES.includes(fromUrl) ? fromUrl : "전체";
+    if (expected !== category) setCategory(expected);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 내부 카테고리 변경 → URL 반영 (북마크/공유 가능, replace로 히스토리 오염 방지)
+  useEffect(() => {
+    const current = searchParams.get("category") ?? "전체";
+    if (current === category) return;
+    const next = new URLSearchParams(searchParams);
+    if (category === "전체") next.delete("category");
+    else next.set("category", category);
+    setSearchParams(next, { replace: true });
+  }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
   const [freeOnly, setFreeOnly] = useState(false);
   const [districtFilter, setDistrictFilter] = useState("");
   const [capacityFilter, setCapacityFilter] = useState("");
@@ -146,7 +214,9 @@ export function StaysPage() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [liked, setLiked] = useState<Set<string>>(new Set());
+  const { isFavorite, toggle: toggleFavorite } = useFavorites();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleMarkerClick = useCallback((id: string) => {
     setHighlightedId(id);
@@ -155,11 +225,10 @@ export function StaysPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchInstitutionFacilities()
-      .then((institutionData) => {
+    fetchAllSpaces()
+      .then((allSpaces) => {
         if (cancelled) return;
-        const institutionAllRows: Facility[] = institutionData?.ListPublicReservationInstitution?.row ?? [];
-        const institutionRows = institutionAllRows.filter((f: Facility) => {
+        const institutionRows: Facility[] = (allSpaces as Facility[]).filter((f) => {
           if (!ALLOWED_INSTITUTION.has(f.MINCLASSNM ?? "")) return false;
           const name = f.SVCNM ?? "";
           if (EXCLUDED_NAME_KEYWORDS.some((k) => name.includes(k))) return false;
@@ -240,13 +309,29 @@ export function StaysPage() {
 
   const filtered = dedupeByPlace(filteredRaw);
 
-  function toggleLike(id: string, e: React.MouseEvent) {
+  async function handleToggleLike(f: DisplayFacility, id: string, e: React.MouseEvent) {
     e.stopPropagation();
-    setLiked((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    try {
+      await toggleFavorite({
+        svc_id: id,
+        svc_nm: f.displayName ?? f.SVCNM,
+        place_nm: f.PLACENM,
+        area_nm: f.AREANM,
+        pay_at_nm: f.PAYATNM,
+        img_url: f.IMGURL,
+        svc_url: f.SVCURL,
+        min_class_nm: f.MINCLASSNM,
+        v_max: f.V_MAX,
+        x: f.X,
+        y: f.Y,
+      });
+    } catch {
+      /* optimistic — Context 가 자동 복구 */
+    }
   }
 
   const ACTIVE_PILL = "border-slate-900 bg-slate-900 text-white";
@@ -268,13 +353,38 @@ export function StaysPage() {
           />
         </div>
 
-        {/* Filter button + scrollable category chips */}
+        {/* Scrollable category chips + Filter button (오른쪽 끝) */}
         <div ref={filterRef} className="relative flex items-center gap-3">
+          {/* Scrollable category chips */}
+          <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {FIXED_CATEGORIES.map((c) => {
+              const isActive = category === c;
+              const hoverClass = CATEGORY_HOVER[c] ?? "hover:bg-slate-50";
+              return (
+                <button
+                  key={c}
+                  onClick={() => setCategory(c)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border border-slate-900 px-4 py-2 text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "bg-slate-900 text-white"
+                      : `bg-white text-slate-900 ${hoverClass}`
+                  }`}
+                >
+                  {CATEGORY_ICONS[c] ?? <Package className="size-4" />}
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Filter button (오른쪽 고정) */}
           <div className="relative shrink-0">
             <button
               onClick={() => setFilterPanelOpen(!filterPanelOpen)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                activeFilterCount > 0 || filterPanelOpen ? ACTIVE_PILL : INACTIVE_PILL
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border border-slate-900 px-4 py-2 text-sm font-semibold transition-colors ${
+                activeFilterCount > 0 || filterPanelOpen
+                  ? "bg-slate-900 text-white"
+                  : "bg-white text-slate-900 hover:bg-slate-50"
               }`}
             >
               <SlidersHorizontal className="size-4" />
@@ -282,7 +392,7 @@ export function StaysPage() {
             </button>
 
             {filterPanelOpen && (
-              <div className="absolute left-0 top-full z-50 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+              <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
                 <h3 className="mb-4 text-sm font-bold text-slate-900">필터</h3>
 
                 <div className="space-y-5">
@@ -368,26 +478,6 @@ export function StaysPage() {
             )}
           </div>
 
-          {/* Vertical separator */}
-          <div className="h-5 w-px shrink-0 bg-slate-200" />
-
-          {/* Scrollable category chips */}
-          <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {FIXED_CATEGORIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => setCategory(c)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border border-slate-900 px-4 py-2 text-sm font-semibold transition-colors ${
-                  category === c
-                    ? "bg-slate-900 text-white"
-                    : "bg-white text-slate-900 hover:bg-slate-50"
-                }`}
-              >
-                {CATEGORY_ICONS[c] ?? <Package className="size-4" />}
-                {c}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -417,9 +507,11 @@ export function StaysPage() {
                         key={id}
                         facilityId={id}
                         facility={f}
-                        isLiked={liked.has(id)}
-                        onLike={(e) => toggleLike(id, e)}
+                        isLiked={isFavorite(id)}
+                        onLike={(e) => handleToggleLike(f, id, e)}
                         isHighlighted={highlightedId === id}
+                        onHover={() => setHighlightedId(id)}
+                        onUnhover={() => setHighlightedId(null)}
                       />
                     );
                   })}
@@ -458,12 +550,16 @@ function GridCard({
   isLiked,
   onLike,
   isHighlighted,
+  onHover,
+  onUnhover,
 }: {
   facilityId: string;
   facility: DisplayFacility;
   isLiked: boolean;
   onLike: (e: React.MouseEvent) => void;
   isHighlighted?: boolean;
+  onHover?: () => void;
+  onUnhover?: () => void;
 }) {
   const navigate = useNavigate();
   const isFree = f.PAYATNM === "무료";
@@ -471,6 +567,8 @@ function GridCard({
   return (
     <div
       data-facility-id={facilityId}
+      onMouseEnter={onHover}
+      onMouseLeave={onUnhover}
       onClick={() =>
         navigate(`/spaces/${encodeURIComponent(f.SVCID ?? facilityId)}`, {
           state: { facility: f },
