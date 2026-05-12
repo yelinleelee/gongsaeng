@@ -6,7 +6,7 @@ const API_KEY = import.meta.env.VITE_SEOUL_API_KEY
 export const fetchFacilities = async () => {
   try {
     const response = await axios.get(
-      `http://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationSport/1/100/`
+      `https://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationSport/1/100/`
     )
     return response.data
   } catch (error) {
@@ -19,7 +19,7 @@ export const fetchFacilities = async () => {
 export const fetchCultureEvents = async () => {
   try {
     const response = await axios.get(
-      `http://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationCulture/1/100/`
+      `https://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationCulture/1/100/`
     )
     return response.data
   } catch (error) {
@@ -32,7 +32,7 @@ export const fetchCultureEvents = async () => {
 export const fetchInstitutionFacilities = async () => {
   try {
     const response = await axios.get(
-      `http://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationInstitution/1/100/`
+      `https://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationInstitution/1/100/`
     )
     return response.data
   } catch (error) {

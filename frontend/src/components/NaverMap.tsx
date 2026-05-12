@@ -17,6 +17,7 @@ function loadSdk(): Promise<void> {
     }
 
     const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID;
+    console.log('Client ID:', import.meta.env.VITE_NAVER_MAP_CLIENT_ID);
     if (!clientId) {
       reject(new Error("VITE_NAVER_MAP_CLIENT_ID 환경변수가 없습니다"));
       return;
@@ -35,6 +36,7 @@ function loadSdk(): Promise<void> {
     script.id = SCRIPT_ID;
     script.type = "text/javascript";
     script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
+    console.log('네이버 지도 URL:', script.src);
 
     console.debug("[NaverMap] SDK 로드 시작 →", script.src);
 
