@@ -56,10 +56,6 @@ func main() {
 	r.GET("/properties/:id/booked-dates", handler.PropertyBookedDates(gormDB))
 	r.GET("/properties/:id/reviews", handler.ListPropertyReviews(gormDB))
 
-	// Seoul open-data proxy (upstream is http-only — proxied so https clients can call it)
-	r.GET("/api/spaces", handler.SeoulSpaces())
-	r.GET("/api/culture", handler.SeoulCulture())
-
 	// User auth (consumed by frontend)
 	r.POST("/auth/google", handler.GoogleLogin(gormDB, verifier))
 

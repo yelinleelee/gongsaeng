@@ -8,5 +8,12 @@ export default defineConfig({
   server: {
     port: 5180,
     strictPort: true,
+    proxy: {
+      '/seoul-api': {
+        target: 'http://openapi.seoul.go.kr:8088',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/seoul-api/, ''),
+      },
+    },
   },
 })
