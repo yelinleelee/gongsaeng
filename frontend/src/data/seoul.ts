@@ -1,16 +1,14 @@
 import axios from 'axios'
 
-const API_KEY = import.meta.env.VITE_SEOUL_API_KEY
+const API_URL = import.meta.env.VITE_API_URL
 
-// 시설대관 공공서비스예약 정보
-export const fetchFacilities = async () => {
+// 시설대관 - 기관시설 (서울시 공공예약 institution)
+export const fetchInstitutionFacilities = async () => {
   try {
-    const response = await axios.get(
-      `https://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationSport/1/100/`
-    )
+    const response = await axios.get(`${API_URL}/api/spaces`)
     return response.data
   } catch (error) {
-    console.error('시설 데이터 불러오기 실패:', error)
+    console.error('기관시설 데이터 불러오기 실패:', error)
     return null
   }
 }
@@ -18,25 +16,10 @@ export const fetchFacilities = async () => {
 // 시설대관 - 문화행사
 export const fetchCultureEvents = async () => {
   try {
-    const response = await axios.get(
-      `https://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationCulture/1/100/`
-    )
+    const response = await axios.get(`${API_URL}/api/culture`)
     return response.data
   } catch (error) {
     console.error('문화행사 데이터 불러오기 실패:', error)
-    return null
-  }
-}
-
-// 시설대관 - 기관시설
-export const fetchInstitutionFacilities = async () => {
-  try {
-    const response = await axios.get(
-      `https://openapi.seoul.go.kr:8088/${API_KEY}/json/ListPublicReservationInstitution/1/100/`
-    )
-    return response.data
-  } catch (error) {
-    console.error('기관시설 데이터 불러오기 실패:', error)
     return null
   }
 }

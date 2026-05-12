@@ -42,7 +42,7 @@ func main() {
 
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5180", "http://localhost:5181"},
+		AllowOrigins:     []string{"http://localhost:5180", "http://localhost:5181", "https://gongsaeng.vercel.app"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -55,6 +55,10 @@ func main() {
 	r.GET("/properties/:id", handler.GetProperty(gormDB))
 	r.GET("/properties/:id/booked-dates", handler.PropertyBookedDates(gormDB))
 	r.GET("/properties/:id/reviews", handler.ListPropertyReviews(gormDB))
+
+	// Seoul open-data proxy (upstream is http-only — proxied so https clients can call it)
+	r.GET("/api/spaces", handler.SeoulSpaces())
+	r.GET("/api/culture", handler.SeoulCulture())
 
 	// User auth (consumed by frontend)
 	r.POST("/auth/google", handler.GoogleLogin(gormDB, verifier))

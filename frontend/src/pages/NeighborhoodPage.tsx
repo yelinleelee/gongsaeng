@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MapPin, RotateCcw, Sparkles } from "lucide-react";
+import { ImageIcon, MapPin, RotateCcw, Sparkles } from "lucide-react";
 import { fetchCultureEvents, fetchInstitutionFacilities } from "../data/seoul";
 
 interface Choice {
@@ -409,16 +409,7 @@ function ResultView({ loading, error, results, onReset, onRetry }: ResultViewPro
             className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow hover:shadow-md"
           >
             <div className="relative h-48 w-full overflow-hidden bg-slate-100">
-              <img
-                src={r.image ?? UNSPLASH_FALLBACK}
-                alt={r.name}
-                loading="lazy"
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  if (img.src !== UNSPLASH_FALLBACK) img.src = UNSPLASH_FALLBACK;
-                }}
-                className="h-full w-full object-cover"
-              />
+              <CardImage src={r.image} />
               <span className="absolute top-3 right-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-slate-900 backdrop-blur">
                 {String(i + 1).padStart(2, "0")}
               </span>
@@ -447,5 +438,40 @@ function ResultView({ loading, error, results, onReset, onRetry }: ResultViewPro
         다시 추천받기
       </button>
     </div>
+  );
+}
+
+function CardImage({ src }: { src?: string }) {
+  const initial = src && src !== UNSPLASH_FALLBACK ? src : UNSPLASH_FALLBACK;
+  const [url, setUrl] = useState(initial);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setUrl(initial);
+    setFailed(false);
+  }, [initial]);
+
+  if (failed) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+        <ImageIcon className="size-10 text-slate-300" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt=""
+      loading="lazy"
+      onError={() => {
+        if (url !== UNSPLASH_FALLBACK) {
+          setUrl(UNSPLASH_FALLBACK);
+        } else {
+          setFailed(true);
+        }
+      }}
+      className="h-full w-full object-cover"
+    />
   );
 }
