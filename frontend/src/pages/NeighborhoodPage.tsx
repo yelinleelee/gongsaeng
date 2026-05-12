@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ImageIcon, MapPin, RotateCcw, Sparkles } from "lucide-react";
-import { fetchCultureEvents, fetchInstitutionFacilities } from "../data/seoul";
+import { fetchAllSpaces } from "../data/seoul";
 
 interface Choice {
   id: string;
@@ -139,13 +139,9 @@ export function NeighborhoodPage() {
   const facilitiesRef = useRef<SeoulFacility[]>([]);
 
   useEffect(() => {
-    Promise.all([fetchCultureEvents(), fetchInstitutionFacilities()])
-      .then(([culture, institution]) => {
-        const cultureRows: SeoulFacility[] =
-          culture?.ListPublicReservationCulture?.row ?? [];
-        const institutionRows: SeoulFacility[] =
-          institution?.ListPublicReservationInstitution?.row ?? [];
-        facilitiesRef.current = [...cultureRows, ...institutionRows];
+    fetchAllSpaces()
+      .then((rows) => {
+        facilitiesRef.current = rows as SeoulFacility[];
       })
       .catch(() => {
         facilitiesRef.current = [];

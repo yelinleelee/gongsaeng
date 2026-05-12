@@ -1,23 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Minus, Plus } from "lucide-react";
-import { fetchCultureEvents, fetchInstitutionFacilities } from "../data/seoul";
-import { manualSpaces } from "../data/manualSpaces";
-
-interface Facility {
-  SVCID?: string;
-  SVCNM: string;
-  PLACENM: string;
-  AREANM: string;
-  PAYATNM: string;
-  IMGURL?: string;
-  SVCURL?: string;
-  MINCLASSNM?: string;
-  V_MAX?: string;
-}
-
-const ALLOWED_CULTURE = new Set(["전시/관람", "문화행사"]);
-const ALLOWED_INSTITUTION = new Set(["강당", "광장", "녹화장소", "공연장", "회의실", "다목적실", "강의실"]);
 
 // "SPACES" 섹션의 3개 카테고리 카드
 // label은 StaysPage의 FIXED_CATEGORIES 키와 일치해야 함 (URL 파라미터 매칭)
@@ -99,7 +82,6 @@ const FULL_BLEED: React.CSSProperties = {
 const HERO_IMAGES = ["/main1.jpg", "/main3.jpg", "/main4.jpg"];
 
 export function HomePage() {
-  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [heroIdx, setHeroIdx] = useState(0);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
 
@@ -108,29 +90,6 @@ export function HomePage() {
       setHeroIdx((i) => (i + 1) % HERO_IMAGES.length);
     }, 3000);
     return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    Promise.all([fetchCultureEvents(), fetchInstitutionFacilities()])
-      .then(([cultureData, institutionData]) => {
-        const cultureRows: Facility[] = (
-          cultureData?.ListPublicReservationCulture?.row ?? []
-        ).filter((f: Facility) => ALLOWED_CULTURE.has(f.MINCLASSNM ?? ""));
-
-        const institutionRows: Facility[] = (
-          institutionData?.ListPublicReservationInstitution?.row ?? []
-        ).filter((f: Facility) => ALLOWED_INSTITUTION.has(f.MINCLASSNM ?? ""));
-
-        const seen = new Set<string>();
-        const all = [...cultureRows, ...institutionRows, ...manualSpaces].filter((f) => {
-          const key = f.SVCID ?? `${f.SVCNM}__${f.PLACENM}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-        setFacilities(all);
-      })
-      .catch(() => setFacilities([]));
   }, []);
 
   return (

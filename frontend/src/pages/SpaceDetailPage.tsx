@@ -420,8 +420,8 @@ export function SpaceDetailPage() {
                         fontWeight: 600,
                       }}
                       labelFormatter={(v) => `${v}시`}
-                      formatter={(value: number, name: string) => [
-                        `${value.toLocaleString()}명`,
+                      formatter={(value, name) => [
+                        `${Number(value).toLocaleString()}명`,
                         name === "weekday" ? "평일" : "주말",
                       ]}
                     />
@@ -462,7 +462,7 @@ export function SpaceDetailPage() {
                         fontSize: 12,
                         fontWeight: 600,
                       }}
-                      formatter={(value: number) => [`${value.toLocaleString()}명`, "시간당 평균"]}
+                      formatter={(value) => [`${Number(value).toLocaleString()}명`, "시간당 평균"]}
                     />
                     <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={28}>
                       {[
