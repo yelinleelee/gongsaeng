@@ -17,7 +17,6 @@ function loadSdk(): Promise<void> {
     }
 
     const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID;
-    console.log('Client ID:', import.meta.env.VITE_NAVER_MAP_CLIENT_ID);
     if (!clientId) {
       reject(new Error("VITE_NAVER_MAP_CLIENT_ID 환경변수가 없습니다"));
       return;
@@ -25,18 +24,19 @@ function loadSdk(): Promise<void> {
 
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
-      // 태그는 있지만 아직 로드 중인 경우
-      // (이미 로드됐다면 위 window.naver?.maps 체크에서 걸림)
       existing.addEventListener("load", () => resolve(), { once: true });
       existing.addEventListener("error", () => reject(new Error("SDK load error")), { once: true });
       return;
     }
 
+    // 2024 NCP 개편 후 신규 키는 ncpKeyId, 기존 키는 ncpClientId 사용
+    // 환경변수 VITE_NAVER_MAP_KEY_PARAM 으로 전환 가능 (기본값: ncpKeyId)
+    const paramName = import.meta.env.VITE_NAVER_MAP_KEY_PARAM ?? "ncpKeyId";
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
     script.type = "text/javascript";
-    script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
-    console.log('네이버 지도 URL:', script.src);
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?${paramName}=${clientId}`;
+    console.debug("[NaverMap] SDK URL:", script.src);
 
     console.debug("[NaverMap] SDK 로드 시작 →", script.src);
 
