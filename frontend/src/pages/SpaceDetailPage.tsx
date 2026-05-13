@@ -253,13 +253,13 @@ export function SpaceDetailPage() {
   tags.push({ label: isFree ? "무료" : "유료" });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 md:pb-0">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-slate-500">
+      <nav className="flex items-center gap-1.5 text-sm text-slate-500 overflow-x-auto whitespace-nowrap">
         <Link to="/stays" className="hover:text-slate-900">공간 찾기</Link>
-        <ChevronRight className="size-3.5" />
+        <ChevronRight className="size-3.5 shrink-0" />
         <span>{facility.AREANM}</span>
-        <ChevronRight className="size-3.5" />
+        <ChevronRight className="size-3.5 shrink-0" />
         <span className="font-semibold text-slate-900">{name}</span>
       </nav>
 
@@ -672,6 +672,37 @@ export function SpaceDetailPage() {
             </div>
           )}
         </aside>
+      </div>
+
+      {/* 모바일 하단 고정 예약 바 (md 이상은 사이드바 sticky 사용) */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.08)] md:hidden">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-black text-emerald-700">
+              {isFree ? "무료 대관" : facility.PAYATNM || "유료 대관"}
+            </p>
+            <p className="truncate text-xs text-slate-500">{facility.PLACENM}</p>
+          </div>
+          {facility.SVCURL ? (
+            <a
+              href={facility.SVCURL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
+            >
+              <ExternalLink className="size-4" />
+              예약하기
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-400"
+            >
+              예약 링크 없음
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

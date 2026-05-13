@@ -35,7 +35,14 @@ interface SeoulFacility {
   IMGURL?: string;
 }
 
-const UNSPLASH_FALLBACK = "https://source.unsplash.com/400x200/?seoul,space,gallery";
+// picsum.photos — source.unsplash.com 이 deprecated 되어 교체. 항상 200 응답
+// 추천 이름별 deterministic 시드, generic 폴백도 별도 상수로
+const STATIC_FALLBACK = "https://picsum.photos/seed/itda-space/600/400";
+
+function fallbackImage(rec: Recommendation): string {
+  const seed = encodeURIComponent(rec.name || rec.location || "space");
+  return `https://picsum.photos/seed/${seed}/600/400`;
+}
 
 function normalize(s: string): string {
   return s.replace(/[\s·\-_,()\[\]/]/g, "").toLowerCase();
@@ -44,7 +51,7 @@ function normalize(s: string): string {
 function matchImage(rec: Recommendation, facilities: SeoulFacility[]): string {
   const targetName = normalize(rec.name);
   const targetLoc = normalize(rec.location);
-  if (!targetName) return UNSPLASH_FALLBACK;
+  if (!targetName) return fallbackImage(rec);
 
   for (const f of facilities) {
     if (!f.IMGURL) continue;
@@ -70,7 +77,7 @@ function matchImage(rec: Recommendation, facilities: SeoulFacility[]): string {
     }
   }
 
-  return UNSPLASH_FALLBACK;
+  return fallbackImage(rec);
 }
 
 const QUESTIONS: Question[] = [
@@ -438,7 +445,7 @@ function ResultView({ loading, error, results, onReset, onRetry }: ResultViewPro
 }
 
 function CardImage({ src }: { src?: string }) {
-  const initial = src && src !== UNSPLASH_FALLBACK ? src : UNSPLASH_FALLBACK;
+  const initial = src && src !== STATIC_FALLBACK ? src : STATIC_FALLBACK;
   const [url, setUrl] = useState(initial);
   const [failed, setFailed] = useState(false);
 
@@ -461,8 +468,8 @@ function CardImage({ src }: { src?: string }) {
       alt=""
       loading="lazy"
       onError={() => {
-        if (url !== UNSPLASH_FALLBACK) {
-          setUrl(UNSPLASH_FALLBACK);
+        if (url !== STATIC_FALLBACK) {
+          setUrl(STATIC_FALLBACK);
         } else {
           setFailed(true);
         }

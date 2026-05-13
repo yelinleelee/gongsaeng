@@ -3,7 +3,12 @@
     "allow": [
       "Bash(git fsck *)",
       "Bash(grep -iE \"\\\\.\\(jpg|jpeg|png|webp\\)$\")",
-      "Bash(grep -n \"^function SpaceCard\\\\|^}$\" src/pages/HomePage.tsx)"
+      "Bash(grep -n \"^function SpaceCard\\\\|^}$\" src/pages/HomePage.tsx)",
+      "Bash(git ls-remote *)",
+      "Bash(mv /Users/yelinlee/Desktop/gongsaeng/frontend/icon.png /Users/yelinlee/Desktop/gongsaeng/frontend/public/icon.png && ls /Users/yelinlee/Desktop/gongsaeng/frontend/public/icon.png)"
+    ],
+    "additionalDirectories": [
+      "/Users/yelinlee/Desktop/gongsaeng/frontend"
     ]
   }
 }

@@ -119,29 +119,29 @@ export function HomePage() {
             className="mb-6 leading-[1.08] text-white"
             style={{
               fontFamily: "'Black Han Sans', sans-serif",
-              fontSize: "clamp(2.2rem, 6vw, 4rem)",
+              fontSize: "clamp(2rem, 6vw, 4rem)",
               textShadow: "0 2px 24px rgba(0,0,0,0.35)",
             }}
           >
             공간을 찾는<br />모든 창작자를 위해,
           </h1>
           <p
-            className="text-xl text-white"
+            className="text-sm text-white md:text-xl"
             style={{ fontFamily: "'Noto Sans KR', sans-serif", fontWeight: 800, textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}
           >
             서울시 공공 유휴공간과 창작자를 연결하는 AI 매칭 플랫폼
           </p>
         </div>
 
-        {/* Bottom card strip — full-width, white bg, black border */}
-        <div className="relative flex w-full border-y-2 border-slate-900">
+        {/* Bottom card strip — 모바일은 세로 stack, 데스크탑은 가로 분할 */}
+        <div className="relative flex w-full flex-col border-y-2 border-slate-900 md:flex-row">
           {[
             {
               to: "/stays",
               label: "둘러보기",
               sub: "서울시 공공공간 80곳을 한눈에 탐색하세요",
               hover: "hover:bg-[#CCFF00]",
-              border: "border-r-2 border-slate-900",
+              border: "border-b-2 border-slate-900 md:border-b-0 md:border-r-2",
             },
             {
               to: "/neighborhood",
@@ -154,16 +154,16 @@ export function HomePage() {
             <Link
               key={to}
               to={to}
-              className={`group flex flex-1 flex-col items-center justify-center gap-2 bg-white px-6 py-8 transition-colors duration-200 ${hover} ${border}`}
+              className={`group flex flex-1 flex-col items-center justify-center gap-2 bg-white px-4 py-6 transition-colors duration-200 md:px-6 md:py-8 ${hover} ${border}`}
             >
               <span
-                className="flex items-center gap-1.5 text-3xl text-slate-900"
+                className="flex items-center gap-1.5 text-2xl text-slate-900 md:text-3xl"
                 style={{ fontFamily: "'Black Han Sans', sans-serif" }}
               >
-                {label} <ChevronRight className="size-6" />
+                {label} <ChevronRight className="size-5 md:size-6" />
               </span>
               <span
-                className="whitespace-nowrap text-center text-sm text-slate-500 group-hover:text-slate-700"
+                className="text-center text-xs text-slate-500 group-hover:text-slate-700 md:whitespace-nowrap md:text-sm"
                 style={{ fontFamily: "'Noto Sans KR', sans-serif", fontWeight: 500 }}
               >
                 {sub}
@@ -174,20 +174,20 @@ export function HomePage() {
       </section>
 
       {/* ── SPACES ── */}
-      <section className="bg-white py-20" style={FULL_BLEED}>
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-[18px] lg:grid-cols-[auto_1fr] lg:items-start lg:gap-14">
-          {/* Left: title (전체 85% 사이즈) */}
+      <section className="bg-white py-12 md:py-20" style={FULL_BLEED}>
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-[18px] lg:grid-cols-[auto_1fr] lg:items-start lg:gap-14">
+          {/* Left: title */}
           <div className="shrink-0 lg:pt-2">
-            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-slate-900 lg:text-5xl">
+            <h2 className="text-3xl font-black leading-[1.05] tracking-tight text-slate-900 md:text-4xl lg:text-5xl">
               SPACES
             </h2>
-            <p className="mt-4 text-lg font-black leading-snug text-slate-900 lg:text-xl">
+            <p className="mt-3 text-base font-black leading-snug text-slate-900 md:mt-4 md:text-lg lg:text-xl">
               공간이 없어서<br />창작을 포기하지 마세요
             </p>
           </div>
 
-          {/* Right: 3 cards — 세로 구분선만 (조금 두껍게), 위아래 가로선 제거 */}
-          <div className="grid grid-cols-3 divide-x-2 divide-slate-900">
+          {/* Right: 3 cards — 모바일 1열(가로 구분선), 데스크탑 3열(세로 구분선) */}
+          <div className="grid grid-cols-1 divide-y-2 divide-slate-900 md:grid-cols-3 md:divide-x-2 md:divide-y-0">
             {SPACE_CATEGORIES.map((c) => (
               <CategoryCard key={c.label} category={c} />
             ))}
@@ -198,12 +198,12 @@ export function HomePage() {
       {/* ── FOR CREATORS ── */}
       <section className="border-y-2 border-slate-900 bg-[#EFF7DC]" style={FULL_BLEED}>
         <div className="mx-auto grid max-w-6xl grid-cols-1 px-[18px] lg:grid-cols-[320px_1fr]">
-          {/* Left: 컬럼 폭은 grid 가 320px 로 고정. pr-12 만 적용 (max-w 불필요). py 는 왼쪽에만, 상단 60px */}
-          <div className="py-20 lg:py-24 lg:pr-12 lg:pt-[60px]">
-            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-slate-900 lg:text-5xl">
+          {/* Left: 컬럼 폭은 grid 가 320px 로 고정 */}
+          <div className="py-12 md:py-20 lg:py-24 lg:pr-12 lg:pt-[60px]">
+            <h2 className="text-3xl font-black leading-[1.05] tracking-tight text-slate-900 md:text-4xl lg:text-5xl">
               FOR<br />CREATORS
             </h2>
-            <p className="mt-4 text-lg font-black leading-snug text-slate-900 lg:text-xl">
+            <p className="mt-3 text-base font-black leading-snug text-slate-900 md:mt-4 md:text-lg lg:text-xl">
               잇다는 누구를 위한<br />플랫폼일까요?
             </p>
           </div>
@@ -248,11 +248,10 @@ export function HomePage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="bg-black py-20" style={FULL_BLEED}>
-        <div className="mx-auto grid max-w-6xl grid-cols-1 px-[18px] lg:grid-cols-[320px_1fr] lg:items-start">
-          {/* Left: FAQ title — FOR CREATORS 와 동일하게 컬럼 폭 320px 고정 → right 시작 x 정확히 일치 */}
+      <section className="bg-black py-12 md:py-20" style={FULL_BLEED}>
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-[18px] lg:grid-cols-[320px_1fr] lg:items-start lg:gap-0">
           <div className="shrink-0 lg:pr-12 lg:pt-2">
-            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-white lg:text-5xl">
+            <h2 className="text-3xl font-black leading-[1.05] tracking-tight text-white md:text-4xl lg:text-5xl">
               FAQ
             </h2>
           </div>

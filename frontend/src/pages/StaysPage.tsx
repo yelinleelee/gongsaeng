@@ -12,6 +12,7 @@ import {
   Search,
   SlidersHorizontal,
   Users,
+  X,
 } from "lucide-react";
 import { fetchAllSpaces } from "../data/seoul";
 import { manualSpaces } from "../data/manualSpaces";
@@ -214,6 +215,7 @@ export function StaysPage() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false); // 모바일에서 지도 오버레이 토글
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -338,9 +340,12 @@ export function StaysPage() {
   const INACTIVE_PILL = "border-slate-200 bg-white text-slate-700 hover:border-slate-400";
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
+    <div
+      className="flex flex-col"
+      style={{ height: "calc(100vh - 120px)", minHeight: "calc(100vh - 120px)" }}
+    >
       {/* Controls */}
-      <div className="flex-shrink-0 pt-6 pb-3 bg-white">
+      <div className="flex-shrink-0 pt-4 pb-3 bg-white md:pt-6">
         {/* Search */}
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
           <Search className="size-4 shrink-0 text-slate-400" />
@@ -353,10 +358,9 @@ export function StaysPage() {
           />
         </div>
 
-        {/* Scrollable category chips + Filter button (오른쪽 끝) */}
-        <div ref={filterRef} className="relative flex items-center gap-3">
-          {/* Scrollable category chips */}
-          <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Category chips + Filter button — 모바일: chips 줄바꿈 + 필터 우상단 정렬, 데스크탑: chips 가로 스크롤 + 필터 우측 */}
+        <div ref={filterRef} className="relative flex items-start gap-3 md:items-center">
+          <div className="flex flex-1 flex-wrap items-center gap-2 pb-1 [scrollbar-width:none] md:flex-nowrap md:overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {FIXED_CATEGORIES.map((c) => {
               const isActive = category === c;
               const hoverClass = CATEGORY_HOVER[c] ?? "hover:bg-slate-50";
@@ -481,7 +485,7 @@ export function StaysPage() {
         </div>
       </div>
 
-      {/* Content: 좌측 카드 그리드(55%) + 우측 고정 지도(45%) */}
+      {/* Content: 모바일은 리스트만 (지도는 토글 오버레이), 데스크탑은 좌 리스트 55% + 우 지도 45% */}
       {loading ? (
         <div className="flex flex-1 items-center justify-center py-24">
           <span className="text-sm font-semibold text-slate-400">불러오는 중...</span>
@@ -490,16 +494,16 @@ export function StaysPage() {
         <p className="py-8 text-sm text-red-600">{error}</p>
       ) : (
         <div className="flex flex-1 gap-5 overflow-hidden">
-          {/* Left: scrollable card grid */}
-          <div className="flex w-[55%] flex-col overflow-hidden">
+          {/* Left: scrollable card grid — 모바일에서 풀폭 */}
+          <div className="flex w-full flex-col overflow-hidden md:w-[55%]">
             <p className="mb-3 flex-shrink-0 text-sm text-slate-500">
               공간 <span className="font-black text-slate-900">{filtered.length}곳</span>
             </p>
-            <div className="flex-1 overflow-y-auto pr-1 pb-6">
+            <div className="flex-1 overflow-y-auto pr-1 pb-24 md:pb-6">
               {filtered.length === 0 ? (
                 <p className="py-16 text-center text-sm text-slate-400">조건에 맞는 공간이 없습니다.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-x-5 gap-y-8">
+                <div className="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-2 sm:gap-y-8">
                   {filtered.map((f, i) => {
                     const id = f.SVCID ?? `${f.SVCNM}-${i}`;
                     return (
@@ -520,24 +524,55 @@ export function StaysPage() {
             </div>
           </div>
 
-          {/* Right: fixed map */}
-          <div className="relative w-[45%] overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
-            <NaverMap
-              facilities={filtered}
-              highlightedId={highlightedId}
-              onMarkerClick={handleMarkerClick}
-            />
-            <div className="pointer-events-none absolute bottom-4 right-4 flex items-center gap-3 rounded-lg bg-white px-3 py-2 text-xs font-semibold shadow-sm">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block size-2 rounded-full bg-emerald-600" />
-                무료
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block size-2 rounded-full bg-slate-900" />
-                유료
-              </span>
+          {/* Right: map — 데스크탑은 사이드바, 모바일은 mapOpen 시 풀스크린 오버레이 */}
+          <div
+            className={`
+              ${mapOpen ? "fixed inset-0 z-40 bg-white" : "hidden"}
+              md:relative md:inset-auto md:z-0 md:flex md:w-[45%] md:overflow-hidden md:rounded-2xl md:border md:border-slate-100 md:shadow-sm
+              ${mapOpen ? "flex" : ""}
+            `}
+          >
+            <div className="relative h-full w-full">
+              <NaverMap
+                facilities={filtered}
+                highlightedId={highlightedId}
+                onMarkerClick={handleMarkerClick}
+              />
+              <div className="pointer-events-none absolute bottom-4 right-4 flex items-center gap-3 rounded-lg bg-white px-3 py-2 text-xs font-semibold shadow-sm">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block size-2 rounded-full bg-emerald-600" />
+                  무료
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block size-2 rounded-full bg-slate-900" />
+                  유료
+                </span>
+              </div>
+              {/* 모바일 전용 닫기 버튼 */}
+              {mapOpen && (
+                <button
+                  type="button"
+                  onClick={() => setMapOpen(false)}
+                  className="absolute left-4 top-4 z-10 flex size-10 items-center justify-center rounded-full bg-white shadow-md md:hidden"
+                  aria-label="지도 닫기"
+                >
+                  <X className="size-5" />
+                </button>
+              )}
             </div>
           </div>
+
+          {/* 모바일 전용 플로팅 "지도보기" 버튼 — mapOpen 일 때는 숨김 */}
+          {!mapOpen && (
+            <button
+              type="button"
+              onClick={() => setMapOpen(true)}
+              className="fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105 md:hidden"
+            >
+              <MapIcon className="size-4" />
+              지도 보기
+            </button>
+          )}
         </div>
       )}
     </div>
