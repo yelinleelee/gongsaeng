@@ -2,8 +2,8 @@
 // - 사용자 toggle 상태(localStorage) + 권한 상태(Notification.permission) 둘 다 통과해야 알림 발사
 // - 이미 알림 보낸 svc_id 는 SEEN_KEY 에 누적 저장 → 같은 공간 두 번 알리지 않음
 
-const PREF_KEY = "gongsaeng_notif_enabled";
-const SEEN_KEY = "gongsaeng_notif_seen_ids";
+const PREF_KEY = "itda_notif_enabled";
+const SEEN_KEY = "itda_notif_seen_ids";
 
 export function isNotifSupported(): boolean {
   return typeof window !== "undefined" && "Notification" in window;

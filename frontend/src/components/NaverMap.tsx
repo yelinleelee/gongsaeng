@@ -150,9 +150,11 @@ export function NaverMap({ facilities, highlightedId, onMarkerClick }: NaverMapP
   useEffect(() => {
     if (!sdkReady || !mapRef.current) return;
 
-    // 1) 마커 아이콘 갱신
-    markersRef.current.forEach(({ marker, id, isFree }) => {
-      marker.setIcon(markerIcon(isFree, id === highlightedId));
+    // 1) 마커 아이콘 갱신 (강조 시 이름 태그 표시 + 위로 올림)
+    markersRef.current.forEach(({ marker, id, isFree, facility }) => {
+      const on = id === highlightedId;
+      marker.setIcon(markerIcon(isFree, on, facility.PLACENM || facility.SVCNM));
+      marker.setZIndex(on ? 1000 : 1);
     });
 
     const map = mapRef.current;
@@ -242,7 +244,7 @@ export function NaverMap({ facilities, highlightedId, onMarkerClick }: NaverMapP
   );
 }
 
-function markerIcon(isFree: boolean, highlighted: boolean) {
+function markerIcon(isFree: boolean, highlighted: boolean, label?: string) {
   const color = isFree ? "#059669" : "#1e3a5f";
   const size = highlighted ? 22 : 14;
   const offset = size / 2;
@@ -250,8 +252,21 @@ function markerIcon(isFree: boolean, highlighted: boolean) {
   const shadow = highlighted
     ? "0 4px 12px rgba(0,0,0,.45)"
     : "0 1px 4px rgba(0,0,0,.35)";
+  const dot = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:${border} solid white;box-shadow:${shadow};cursor:pointer;transition:all .2s ease"></div>`;
+  const tag =
+    highlighted && label
+      ? `<div style="position:absolute;left:50%;bottom:${size + 7}px;transform:translateX(-50%);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:${color};color:#fff;padding:3px 9px;border-radius:7px;font-size:12px;font-weight:600;line-height:1.3;box-shadow:0 3px 10px rgba(0,0,0,.3);pointer-events:none;">${escapeHtml(label)}<div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);width:0;height:0;border:5px solid transparent;border-top-color:${color}"></div></div>`
+      : "";
   return {
-    content: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:${border} solid white;box-shadow:${shadow};cursor:pointer;transition:all .2s ease"></div>`,
+    content: `<div style="position:relative;width:${size}px;height:${size}px">${dot}${tag}</div>`,
     anchor: new window.naver.maps.Point(offset, offset),
   };
+}
+
+function escapeHtml(s: string) {
+  return s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)
+  );
 }

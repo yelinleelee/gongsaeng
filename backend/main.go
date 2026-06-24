@@ -9,11 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"github.com/hierolabs/gongsaeng/backend/internal/auth"
-	"github.com/hierolabs/gongsaeng/backend/internal/cloudinary"
-	"github.com/hierolabs/gongsaeng/backend/internal/db"
-	"github.com/hierolabs/gongsaeng/backend/internal/firebase"
-	"github.com/hierolabs/gongsaeng/backend/internal/handler"
+	"github.com/hierolabs/itda/backend/internal/auth"
+	"github.com/hierolabs/itda/backend/internal/cloudinary"
+	"github.com/hierolabs/itda/backend/internal/db"
+	"github.com/hierolabs/itda/backend/internal/firebase"
+	"github.com/hierolabs/itda/backend/internal/handler"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5180", "http://localhost:5181", "https://gongsaeng.vercel.app"},
+		AllowOrigins:     []string{"http://localhost:5180", "http://localhost:5181", "https://gongsaeng.vercel.app", "https://itda-seoul.vercel.app"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -131,7 +131,7 @@ func main() {
 		port = "8080"
 	}
 	addr := ":" + port
-	log.Printf("gongsaeng backend listening on %s", addr)
+	log.Printf("itda backend listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}

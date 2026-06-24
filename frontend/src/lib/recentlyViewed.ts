@@ -1,7 +1,7 @@
 // 최근 본 공간을 localStorage에 저장 (백엔드 불필요)
 // 사용자가 디바이스 바뀌면 초기화됨 — 의도된 동작
 
-const STORAGE_KEY = "gongsaeng_recently_viewed";
+const STORAGE_KEY = "itda_recently_viewed";
 const MAX_ITEMS = 8;
 
 export interface RecentSpace {

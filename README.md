@@ -1,4 +1,4 @@
-# gongsaeng
+# itda
 
 세 개의 앱으로 구성된 모노 저장소입니다.
 
@@ -31,8 +31,8 @@ go install github.com/air-verse/air@latest
 ## 최초 1회 설정
 
 ```bash
-git clone https://github.com/hierolabs/gongsaeng.git
-cd gongsaeng
+git clone https://github.com/hierolabs/itda.git
+cd itda
 
 # frontend
 cd frontend && npm install && cp .env.example .env && cd ..
@@ -50,7 +50,7 @@ cd backend && go mod tidy && cp .env.example .env && cd ..
 ```env
 # backend/.env
 PORT=8080
-DATABASE_DSN=user:password@tcp(127.0.0.1:3306)/gongsaeng?charset=utf8mb4&parseTime=True&loc=Local
+DATABASE_DSN=user:password@tcp(127.0.0.1:3306)/itda?charset=utf8mb4&parseTime=True&loc=Local
 
 # frontend/.env
 VITE_API_URL=http://localhost:8080

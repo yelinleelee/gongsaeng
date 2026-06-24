@@ -188,7 +188,6 @@ export function MainLayout() {
             style={{ fontFamily: "'Noto Sans KR', sans-serif", fontWeight: 500 }}
           >
             <p>상호 : 잇다</p>
-            <p className="mt-1">대표 : 아로</p>
             <div className="mt-4 space-y-1.5">
               <a href="#" className="block transition-colors hover:text-slate-900">
                 개인정보 처리 방침

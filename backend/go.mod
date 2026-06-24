@@ -1,4 +1,4 @@
-module github.com/hierolabs/gongsaeng/backend
+module github.com/hierolabs/itda/backend
 
 go 1.26.2
 

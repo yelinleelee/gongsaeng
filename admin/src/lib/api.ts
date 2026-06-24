@@ -6,7 +6,7 @@ if (!API_URL) {
 
 export { API_URL };
 
-const TOKEN_KEY = "gongsaeng_admin_token";
+const TOKEN_KEY = "itda_admin_token";
 
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY),

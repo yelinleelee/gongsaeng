@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/hierolabs/gongsaeng/backend/internal/cloudinary"
+	"github.com/hierolabs/itda/backend/internal/cloudinary"
 )
 
 const maxImageBytes = 10 << 20 // 10 MB per file

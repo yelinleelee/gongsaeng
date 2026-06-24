@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/hierolabs/gongsaeng/backend/internal/auth"
-	"github.com/hierolabs/gongsaeng/backend/internal/model"
+	"github.com/hierolabs/itda/backend/internal/auth"
+	"github.com/hierolabs/itda/backend/internal/model"
 )
 
 type propertyInput struct {

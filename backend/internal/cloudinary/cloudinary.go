@@ -33,7 +33,7 @@ var (
 // New initializes the Cloudinary client from env. Required:
 //   CLOUDINARY_URL  cloudinary://<api_key>:<api_secret>@<cloud_name>
 // Optional:
-//   CLOUDINARY_FOLDER  default upload folder (defaults to "gongsaeng/stays")
+//   CLOUDINARY_FOLDER  default upload folder (defaults to "itda/stays")
 func New() (*Client, error) {
 	once.Do(func() {
 		url := os.Getenv("CLOUDINARY_URL")
@@ -48,7 +48,7 @@ func New() (*Client, error) {
 		}
 		folder := os.Getenv("CLOUDINARY_FOLDER")
 		if folder == "" {
-			folder = "gongsaeng/stays"
+			folder = "itda/stays"
 		}
 		instance = &Client{cld: c, folder: folder}
 	})

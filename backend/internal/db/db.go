@@ -9,8 +9,8 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/hierolabs/gongsaeng/backend/internal/auth"
-	"github.com/hierolabs/gongsaeng/backend/internal/model"
+	"github.com/hierolabs/itda/backend/internal/auth"
+	"github.com/hierolabs/itda/backend/internal/model"
 )
 
 func Open() (*gorm.DB, error) {
